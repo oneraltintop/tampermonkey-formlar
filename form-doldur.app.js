@@ -1,4 +1,4 @@
-// Form Doldur uygulaması — sürüm 3.1.7
+// Form Doldur uygulaması — sürüm 3.1.8
 (() => {
   'use strict';
   if (!['www.a101.com.tr', 'a101.com.tr'].includes(location.hostname) ||
@@ -69,5 +69,13 @@
       button.disabled = false;
     }
   });
+  const testButton = button.cloneNode(false);
+  testButton.id = 'a101-form-deneme';
+  testButton.textContent = 'DENEME';
+  testButton.style.bottom = '84px';
+  testButton.addEventListener('click', () => {
+    testButton.textContent = 'Çalışıyor ✓';
+  });
+  document.body.appendChild(testButton);
   document.body.appendChild(button);
 })();
