@@ -1,4 +1,4 @@
-// Form Doldur uygulaması — sürüm 3.1.5
+// Form Doldur uygulaması — sürüm 3.1.6
 (() => {
   'use strict';
   if (!['www.a101.com.tr', 'a101.com.tr'].includes(location.hostname) ||
@@ -10,7 +10,7 @@
   button.type = 'button';
   button.textContent = 'HIZ TESTİ';
   button.style.cssText = [
-    'position:fixed', 'bottom:24px', 'right:24px',
+    'position:fixed', 'bottom:24px', 'left:24px',
     'z-index:2147483647', 'background:#000000', 'color:white',
     'border:0', 'border-radius:10px', 'padding:14px 20px',
     'font:bold 16px Arial,sans-serif', 'cursor:pointer',
