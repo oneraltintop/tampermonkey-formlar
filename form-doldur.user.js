@@ -1,21 +1,40 @@
 // ==UserScript==
 // @name         Form Doldur
 // @namespace    local.atv.form
-// @version      3.2.0
-// @description  A101 form kodunu GitHub'dan yükleyen sabit yükleyici.
+// @version      3.3.0
+// @description  İzin verilen sayfalarda form kodunu GitHub'dan yükler.
 // @match        *://*/*
 // @updateURL    https://raw.githubusercontent.com/oneraltintop/tampermonkey-formlar/main/form-doldur.user.js
 // @downloadURL  https://raw.githubusercontent.com/oneraltintop/tampermonkey-formlar/main/form-doldur.user.js
 // @run-at       document-idle
 // @grant        GM_xmlhttpRequest
+// @grant        GM_getValue
+// @grant        GM_setValue
+// @grant        GM_registerMenuCommand
 // @connect      api.github.com
 // @noframes
 // ==/UserScript==
 
 (() => {
   'use strict';
-  if (!['www.a101.com.tr', 'a101.com.tr'].includes(location.hostname) ||
-      !/^\/kariyer\/?$/.test(location.pathname)) return;
+  if (!['http:', 'https:'].includes(location.protocol)) return;
+
+  // Bu izin yalnızca bu tarayıcıda saklanır; adres GitHub isteğine eklenmez.
+  const permissionKey = 'form-doldur:enabled:' + location.origin + location.pathname;
+  const defaultEnabled = ['www.a101.com.tr', 'a101.com.tr'].includes(location.hostname) &&
+    /^\/kariyer\/?$/.test(location.pathname);
+  const enabled = GM_getValue(permissionKey, defaultEnabled) === true;
+
+  GM_registerMenuCommand(
+    enabled ? 'Bu sayfada Form Doldur’u kapat' : 'Bu sayfada Form Doldur’u etkinleştir',
+    () => {
+      GM_setValue(permissionKey, !enabled);
+      alert(enabled
+        ? 'Bu sayfada Form Doldur kapatıldı. Açık düğmeleri kaldırmak için sayfayı yenile.'
+        : 'Bu sayfada Form Doldur etkinleştirildi. Sayfayı yenile. Bu formun doldurma kodu ayrıca hazırlanmalıdır.');
+    }
+  );
+  if (!enabled) return;
   if (document.getElementById('a101-form-doldur') ||
       document.getElementById('a101-form-loader')) return;
 
@@ -81,8 +100,12 @@
           if (!version) throw new Error('GitHub beklenen uygulama kodunu döndürmedi.');
           new Function(source + '\n//# sourceURL=form-doldur.app.js')();
           const button = document.getElementById('a101-form-doldur');
-          if (!button) throw new Error('Form düğmesi oluşturulamadı.');
-          button.title = 'Yükleyici 3.2.0 · Uygulama ' + version[1] +
+          if (!button) {
+            fail('Bu sayfa için uygulama koduna henüz form desteği eklenmedi.',
+              'Bu sayfa için form henüz hazırlanmadı');
+            return;
+          }
+          button.title = 'Yükleyici 3.3.0 · Uygulama ' + version[1] +
             ' · ' + ((Date.now() - start) / 1000).toFixed(1) + ' sn';
           status.remove();
         } catch (error) {
