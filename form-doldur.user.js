@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Form Doldur
 // @namespace    local.atv.form
-// @version      3.0.2
+// @version      3.0.3
 // @description  Tek düğmeyle askerlik ve engelli durumu seçer.
 // @match        *://*/*
 // @updateURL    https://raw.githubusercontent.com/oneraltintop/tampermonkey-formlar/main/form-doldur.user.js
@@ -20,7 +20,7 @@
   const button = document.createElement('button');
   button.id = 'a101-form-doldur';
   button.type = 'button';
-  button.textContent = 'TELEFONDAN DENEME';
+  button.textContent = 'YENİ DENEME';
   button.style.cssText = [
     'position:fixed', 'bottom:24px', 'right:24px',
     'z-index:2147483647', 'background:#007e91', 'color:white',
@@ -67,7 +67,7 @@
       );
       button.textContent = 'Seçildi ✓';
     } catch (error) {
-      button.textContent = 'TELEFONDAN DENEME';
+      button.textContent = 'YENİ DENEME';
       alert(error.message);
     } finally {
       button.disabled = false;
