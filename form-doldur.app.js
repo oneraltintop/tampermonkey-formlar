@@ -1,4 +1,4 @@
-// Form Doldur uygulaması — sürüm 3.1.3
+// Form Doldur uygulaması — sürüm 3.1.4
 (() => {
   'use strict';
   if (!['www.a101.com.tr', 'a101.com.tr'].includes(location.hostname) ||
@@ -22,7 +22,7 @@
     const poll = () => {
       const result = find();
       if (result) return resolve(result);
-      if (Date.now() - start >= timeout) return reject(new Error('Askerlik seçenekleri bulunamadı.'));
+      if (Date.now() - start >= timeout) return reject(new Error('Alanlar beklenen değerlere getirilemedi.'));
       setTimeout(poll, 50);
     };
     poll();
@@ -35,7 +35,14 @@
     try {
       const military = document.getElementById('militaryStatus');
       const disability = document.getElementById('disabilityStatus-yes');
-      if (!military || !disability) throw new Error('Kişisel Bilgiler adımındaki alanlar bulunamadı.');
+      const firstName = document.getElementById('firstName');
+      if (!firstName || !military || !disability) throw new Error('Kişisel Bilgiler adımındaki alanlar bulunamadı.');
+      // React'in kontrollü alan durumunu da güncelle.
+      const view = firstName.ownerDocument.defaultView;
+      const setValue = Object.getOwnPropertyDescriptor(view.HTMLInputElement.prototype, 'value').set;
+      setValue.call(firstName, 'delioğlan');
+      firstName.dispatchEvent(new view.Event('input', { bubbles: true }));
+      firstName.dispatchEvent(new view.Event('change', { bubbles: true }));
       if (military.textContent.trim() !== 'Yapıldı') {
         if (military.getAttribute('aria-expanded') !== 'true') military.click();
         const option = await waitFor(() => {
@@ -50,6 +57,7 @@
       if (!yes.checked) yes.click();
       // React güncellemesinden sonra sonuçları sayfadaki alanlardan doğrula.
       await waitFor(() =>
+        document.getElementById('firstName')?.value === 'delioğlan' &&
         document.getElementById('militaryStatus')?.textContent.trim() === 'Yapıldı' &&
         document.getElementById('disabilityStatus-yes')?.checked
       );
