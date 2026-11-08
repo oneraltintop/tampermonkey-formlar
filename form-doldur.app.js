@@ -1,4 +1,4 @@
-// Form Doldur uygulaması — sürüm 3.1.6
+// Form Doldur uygulaması — sürüm 3.1.7
 (() => {
   'use strict';
   if (!['www.a101.com.tr', 'a101.com.tr'].includes(location.hostname) ||
@@ -8,7 +8,7 @@
   const button = document.createElement('button');
   button.id = 'a101-form-doldur';
   button.type = 'button';
-  button.textContent = 'HIZ TESTİ';
+  button.textContent = 'Biz harikayız';
   button.style.cssText = [
     'position:fixed', 'bottom:24px', 'left:24px',
     'z-index:2147483647', 'background:#000000', 'color:white',
@@ -63,7 +63,7 @@
       );
       button.textContent = 'Seçildi ✓';
     } catch (error) {
-      button.textContent = 'HIZ TESTİ';
+      button.textContent = 'Biz harikayız';
       alert(error.message);
     } finally {
       button.disabled = false;
