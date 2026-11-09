@@ -1,9 +1,9 @@
 // ==UserScript==
 // @name         Form Doldur
 // @namespace    local.atv.form
-// @version      3.3.0
-// @description  İzin verilen sayfalarda form kodunu GitHub'dan yükler.
-// @match        *://*/*
+// @version      3.4.0
+// @description  Hasta kayıt ekranında pencere kapatma kodunu GitHub'dan yükler.
+// @match        *://hbys.aydinism.gov.tr/hbys-web/desktop/desktop.html*
 // @updateURL    https://raw.githubusercontent.com/oneraltintop/tampermonkey-formlar/main/form-doldur.user.js
 // @downloadURL  https://raw.githubusercontent.com/oneraltintop/tampermonkey-formlar/main/form-doldur.user.js
 // @run-at       document-idle
@@ -21,8 +21,9 @@
 
   // Bu izin yalnızca bu tarayıcıda saklanır; adres GitHub isteğine eklenmez.
   const permissionKey = 'form-doldur:enabled:' + location.origin + location.pathname;
-  const defaultEnabled = ['www.a101.com.tr', 'a101.com.tr'].includes(location.hostname) &&
-    /^\/kariyer\/?$/.test(location.pathname);
+  const defaultEnabled = location.hostname === 'hbys.aydinism.gov.tr' &&
+    location.pathname === '/hbys-web/desktop/desktop.html';
+  if (!defaultEnabled) return;
   const enabled = GM_getValue(permissionKey, defaultEnabled) === true;
 
   GM_registerMenuCommand(
@@ -105,7 +106,7 @@
               'Bu sayfa için form henüz hazırlanmadı');
             return;
           }
-          button.title = 'Yükleyici 3.3.0 · Uygulama ' + version[1] +
+          button.title = 'Yükleyici 3.4.0 · Uygulama ' + version[1] +
             ' · ' + ((Date.now() - start) / 1000).toFixed(1) + ' sn';
           status.remove();
         } catch (error) {
