@@ -1,4 +1,4 @@
-// Form Doldur uygulaması — sürüm 3.6.2
+// Form Doldur uygulaması — sürüm 3.6.3
 (() => {
   'use strict';
   if (!['http:', 'https:'].includes(location.protocol)) return;
@@ -61,6 +61,14 @@
     controls: technical(element.getAttribute('aria-controls')),
     disabled: element.disabled === true
   });
+  const technicalAncestors = element => {
+    const path = [];
+    let current = element;
+    for (let depth = 0; current && depth < 14; depth++, current = current.parentElement) {
+      path.push(describe(current));
+    }
+    return path;
+  };
   const frameDocuments = () => {
     const found = [];
     const seen = new Set();
@@ -79,7 +87,7 @@
   };
   const inspectFields = () => {
     document.getElementById('form-teknik-panel')?.remove();
-    const report = { version: '3.6.2', fields: [], saveButtons: [], choices: [], actions: [], tabs: [], editors: [] };
+    const report = { version: '3.6.3', fields: [], saveButtons: [], choices: [], actions: [], tabs: [], editors: [], diagnosisStructure: [] };
     for (const { doc, path } of frameDocuments()) {
       const isVisible = element => element.getClientRects().length > 0 &&
         doc.defaultView.getComputedStyle(element).visibility !== 'hidden';
@@ -116,6 +124,11 @@
         const label = cleanLabel(action.textContent || action.getAttribute('aria-label') || '');
         if (/^(kabul|hasta kabul|ekle|tanı ekle|tamam|kaydet)(\s*[[(]f\d+[)\]])?$/u.test(label)) {
           report.actions.push({ frame: path, label, ...describe(action) });
+          if (label.startsWith('tamam')) {
+            report.diagnosisStructure.push({
+              frame: path, target: 'tamam', ancestors: technicalAncestors(action)
+            });
+          }
         }
       }
       for (const tab of doc.querySelectorAll('[role="tab"], .x-tab')) {
@@ -134,6 +147,9 @@
       for (const cell of doc.querySelectorAll('.x-grid-cell-inner, .x-grid3-cell-inner, [role="gridcell"]')) {
         if (isVisible(cell) && normalize(cell.textContent || '') === 'z00.0') {
           report.choices.push({ frame: path, label: 'z00.0', ...describe(cell) });
+          report.diagnosisStructure.push({
+            frame: path, target: 'z00.0', ancestors: technicalAncestors(cell)
+          });
         }
       }
       for (const option of doc.querySelectorAll('[role="option"], .x-boundlist-item, .x-combo-list-item')) {
@@ -147,7 +163,7 @@
     panel.id = 'form-teknik-panel';
     panel.style.cssText = 'position:fixed;inset:10% 10%;z-index:2147483647;background:white;color:black;padding:20px;border:2px solid #333;box-shadow:0 4px 20px #0008;font:14px Arial;display:flex;flex-direction:column;gap:12px';
     const heading = document.createElement('strong');
-    heading.textContent = 'Alan tanıma raporu — 3.6.2';
+    heading.textContent = 'Alan tanıma raporu — 3.6.3';
     const note = document.createElement('div');
     note.textContent = 'Yalnızca hedef alanların teknik bilgileri. Alan değerleri ve hasta bilgileri rapora eklenmez. Rapor otomatik gönderilmez.';
     const output = document.createElement('textarea');
@@ -171,7 +187,7 @@
   reportButton.id = 'poliklinik-rapor-dugmesi';
   reportButton.type = 'button';
   reportButton.textContent = 'T';
-  reportButton.title = 'Teknik raporu aç · 3.6.2';
+  reportButton.title = 'Teknik raporu aç · 3.6.3';
   reportButton.setAttribute('aria-label', 'Teknik raporu aç');
   reportButton.style.cssText = 'position:fixed;right:6px;top:50%;transform:translateY(-50%);z-index:2147483647;width:24px;height:24px;padding:0;border:1px solid white;border-radius:5px;background:#285c8c;color:white;font:bold 12px Arial,sans-serif;cursor:pointer';
   reportButton.addEventListener('click', inspectFields);
@@ -388,7 +404,7 @@
       saves[0].click();
       // Kaydet sonucunu HBYS gösterir; ek bilgi penceresi açma.
     } catch (error) {
-      alert('[3.6.2] ' + (saveClicked ? 'Kaydet işleminin sonucunu ekrandan kontrol et. ' : shortcutName + ' durdu: ') +
+      alert('[3.6.3] ' + (saveClicked ? 'Kaydet işleminin sonucunu ekrandan kontrol et. ' : shortcutName + ' durdu: ') +
         error.message);
     } finally {
       activeFields = null;
@@ -679,14 +695,14 @@
         } catch (error) {
           panel.remove();
           release();
-          alert('[3.6.2] Poliklinik: ' + error.message);
+          alert('[3.6.3] Poliklinik: ' + error.message);
         }
       };
       panel.append(summary, save, dismiss);
       document.body.appendChild(panel);
       reviewOpen = true;
     } catch (error) {
-      alert('[3.6.2] Poliklinik: ' + error.message);
+      alert('[3.6.3] Poliklinik: ' + error.message);
     } finally {
       if (!reviewOpen) release();
     }
