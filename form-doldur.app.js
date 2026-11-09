@@ -1,4 +1,4 @@
-// Form Doldur uygulaması — sürüm 3.6.7
+// Form Doldur uygulaması — sürüm 3.6.8
 (() => {
   'use strict';
   if (!['http:', 'https:'].includes(location.protocol)) return;
@@ -87,7 +87,7 @@
   };
   const inspectFields = () => {
     document.getElementById('form-teknik-panel')?.remove();
-    const report = { version: '3.6.7', fields: [], saveButtons: [], choices: [], actions: [], tabs: [], editors: [], diagnosisStructure: [] };
+    const report = { version: '3.6.8', fields: [], saveButtons: [], choices: [], actions: [], tabs: [], editors: [], diagnosisStructure: [] };
     for (const { doc, path } of frameDocuments()) {
       const isVisible = element => element.getClientRects().length > 0 &&
         doc.defaultView.getComputedStyle(element).visibility !== 'hidden';
@@ -163,7 +163,7 @@
     panel.id = 'form-teknik-panel';
     panel.style.cssText = 'position:fixed;inset:10% 10%;z-index:2147483647;background:white;color:black;padding:20px;border:2px solid #333;box-shadow:0 4px 20px #0008;font:14px Arial;display:flex;flex-direction:column;gap:12px';
     const heading = document.createElement('strong');
-    heading.textContent = 'Alan tanıma raporu — 3.6.7';
+    heading.textContent = 'Alan tanıma raporu — 3.6.8';
     const note = document.createElement('div');
     note.textContent = 'Yalnızca hedef alanların teknik bilgileri. Alan değerleri ve hasta bilgileri rapora eklenmez. Rapor otomatik gönderilmez.';
     const output = document.createElement('textarea');
@@ -394,7 +394,7 @@
       saves[0].click();
       // Kaydet sonucunu HBYS gösterir; ek bilgi penceresi açma.
     } catch (error) {
-      alert('[3.6.7] ' + (saveClicked ? 'Kaydet işleminin sonucunu ekrandan kontrol et. ' : shortcutName + ' durdu: ') +
+      alert('[3.6.8] ' + (saveClicked ? 'Kaydet işleminin sonucunu ekrandan kontrol et. ' : shortcutName + ' durdu: ') +
         error.message);
     } finally {
       activeFields = null;
@@ -541,6 +541,12 @@
     if (!unit) throw new Error('Poliklinik birimi boş. Tanı seçilmedi.');
     return ['enjeksiyon', 'pansuman'].includes(unit) ? 'Z54' : 'Z00.0';
   };
+  const noteForUnit = text => {
+    const unit = normalize(text).replace(/\s*\([^()]+\)\s*$/u, '').trim();
+    if (unit === 'enjeksiyon') return 'Enjeksiyon yapıldı';
+    if (unit === 'pansuman') return 'Pansuman yapıldı';
+    return 'Dr yönlendirildi';
+  };
   const outpatientUnitField = (root, doc) => {
     const fields = new Set();
     for (const label of root.querySelectorAll('label, .x-form-item-label')) {
@@ -666,7 +672,7 @@
         if (matches.length > 1) throw new Error('Birden fazla not alanı bulundu.');
         return matches[0];
       });
-      const phrase = 'Dr yönlendirildi';
+      const phrase = noteForUnit(unitSnapshot);
       const previous = note.value;
       const alreadyPresent = previous.split(/\r?\n/).some(line => normalize(line) === normalize(phrase));
       const next = alreadyPresent ? previous : previous + (previous && !previous.endsWith('\n') ? '\n' : '') + phrase;
@@ -690,7 +696,7 @@
       }
       uniqueAction(root, 'kaydet').click();
     } catch (error) {
-      alert('[3.6.7] Poliklinik: ' + error.message);
+      alert('[3.6.8] Poliklinik: ' + error.message);
     } finally {
       release();
     }
