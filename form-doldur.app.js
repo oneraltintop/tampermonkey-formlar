@@ -1,4 +1,4 @@
-// Form Doldur uygulaması — sürüm 3.6.6
+// Form Doldur uygulaması — sürüm 3.6.7
 (() => {
   'use strict';
   if (!['http:', 'https:'].includes(location.protocol)) return;
@@ -87,7 +87,7 @@
   };
   const inspectFields = () => {
     document.getElementById('form-teknik-panel')?.remove();
-    const report = { version: '3.6.6', fields: [], saveButtons: [], choices: [], actions: [], tabs: [], editors: [], diagnosisStructure: [] };
+    const report = { version: '3.6.7', fields: [], saveButtons: [], choices: [], actions: [], tabs: [], editors: [], diagnosisStructure: [] };
     for (const { doc, path } of frameDocuments()) {
       const isVisible = element => element.getClientRects().length > 0 &&
         doc.defaultView.getComputedStyle(element).visibility !== 'hidden';
@@ -163,7 +163,7 @@
     panel.id = 'form-teknik-panel';
     panel.style.cssText = 'position:fixed;inset:10% 10%;z-index:2147483647;background:white;color:black;padding:20px;border:2px solid #333;box-shadow:0 4px 20px #0008;font:14px Arial;display:flex;flex-direction:column;gap:12px';
     const heading = document.createElement('strong');
-    heading.textContent = 'Alan tanıma raporu — 3.6.6';
+    heading.textContent = 'Alan tanıma raporu — 3.6.7';
     const note = document.createElement('div');
     note.textContent = 'Yalnızca hedef alanların teknik bilgileri. Alan değerleri ve hasta bilgileri rapora eklenmez. Rapor otomatik gönderilmez.';
     const output = document.createElement('textarea');
@@ -394,7 +394,7 @@
       saves[0].click();
       // Kaydet sonucunu HBYS gösterir; ek bilgi penceresi açma.
     } catch (error) {
-      alert('[3.6.6] ' + (saveClicked ? 'Kaydet işleminin sonucunu ekrandan kontrol et. ' : shortcutName + ' durdu: ') +
+      alert('[3.6.7] ' + (saveClicked ? 'Kaydet işleminin sonucunu ekrandan kontrol et. ' : shortcutName + ' durdu: ') +
         error.message);
     } finally {
       activeFields = null;
@@ -482,12 +482,12 @@
   const outpatientTabs = (root, label) =>
     [...root.querySelectorAll('.x-tab, [role="tab"]')]
       .filter(tab => shown(tab) && cleanLabel(tab.textContent || '') === label);
-  const diagnosisCells = root => {
+  const diagnosisCells = (root, code = 'Z00.0') => {
     const rows = new Map();
     for (const cell of root.querySelectorAll(
       '.x-grid-cell-inner, .x-grid3-cell-inner, [role="gridcell"]'
     )) {
-      if (normalize(cell.textContent || '') !== 'z00.0') continue;
+      if (normalize(cell.textContent || '') !== normalize(code)) continue;
       const row = cell.closest('.x-grid-row, .x-grid3-row, .x-grid-item, [role="row"]');
       const target = cell.querySelector('.x-grid-cell-inner, .x-grid3-cell-inner') || cell;
       if (row && !rows.has(row)) rows.set(row, target);
@@ -499,7 +499,7 @@
     for (const done of outpatientActions(doc, 'tamam')) {
       const window = done.closest('.x-window');
       if (!window || !window.isConnected) continue;
-      const hasDiagnosis = diagnosisCells(window).some(shown);
+      const hasDiagnosis = [...diagnosisCells(window), ...diagnosisCells(window, 'Z54')].some(shown);
       const hasSearch = [...window.querySelectorAll('input[type="search"][name="name"]')].some(shown);
       if (hasDiagnosis && hasSearch) structuralMatches.add(window);
     }
@@ -530,11 +530,28 @@
   };
   const diagnosisWindowIsOpen = dialog => dialog.isConnected &&
     outpatientActions(dialog, 'tamam').length > 0 &&
-    diagnosisCells(dialog).some(shown);
+    [...diagnosisCells(dialog), ...diagnosisCells(dialog, 'Z54')].some(shown);
   const openOutpatientTab = (root, label) => {
     const tabs = outpatientTabs(root, label);
     if (tabs.length !== 1) throw new Error('"' + label + '" sekmesi tek olarak bulunamadı.');
     tabs[0].click();
+  };
+  const diagnosisForUnit = text => {
+    const unit = normalize(text).replace(/\s*\([^()]+\)\s*$/u, '').trim();
+    if (!unit) throw new Error('Poliklinik birimi boş. Tanı seçilmedi.');
+    return ['enjeksiyon', 'pansuman'].includes(unit) ? 'Z54' : 'Z00.0';
+  };
+  const outpatientUnitField = (root, doc) => {
+    const fields = new Set();
+    for (const label of root.querySelectorAll('label, .x-form-item-label')) {
+      if (cleanLabel(label.textContent || '') !== 'birim' || !shown(label)) continue;
+      const linked = label.getAttribute('for');
+      const input = linked ? doc.getElementById(linked) :
+        label.closest('.x-form-item, .x-field')?.querySelector('input[type="text"]');
+      if (input && shown(input)) fields.add(input);
+    }
+    if (fields.size !== 1) throw new Error('Poliklinik birimi tek olarak belirlenemedi. Tanı seçilmedi.');
+    return [...fields][0];
   };
   let outpatientRunning = false;
   const runOutpatient = async () => {
@@ -603,7 +620,10 @@
       outpatientStage = 'Muayene Bilgileri sekmesini açma';
       openOutpatientTab(root, 'muayene bilgileri');
       await waitFor(() => outpatientTabs(root, 'muayene bilgileri')[0]?.className.includes('active'));
-      if (!diagnosisCells(root).length) {
+      const unitField = outpatientUnitField(root, doc);
+      const unitSnapshot = unitField.value;
+      const diagnosisCode = diagnosisForUnit(unitSnapshot);
+      if (!diagnosisCells(root, diagnosisCode).length) {
         outpatientStage = 'Tanı Ekleme Listesi penceresini bulma';
         uniqueAction(root, 'ekle').click();
         const dialog = await waitFor(() => {
@@ -611,14 +631,14 @@
           if (dialogs.length > 1) throw new Error('Birden fazla tanı listesi açıldı.');
           return dialogs[0];
         });
-        outpatientStage = 'Listede Z00.0 satırını bulma';
+        outpatientStage = 'Listede ' + diagnosisCode + ' satırını bulma';
         const options = await waitFor(() => {
-          const cells = diagnosisCells(dialog).filter(shown);
-          if (cells.length > 1) throw new Error('Z00.0 listede birden fazla satırda bulundu.');
+          const cells = diagnosisCells(dialog, diagnosisCode).filter(shown);
+          if (cells.length > 1) throw new Error(diagnosisCode + ' listede birden fazla satırda bulundu.');
           return cells.length === 1 ? cells : null;
         });
         const cell = options[0];
-        outpatientStage = 'Z00.0 tanısını sağdaki Seçilen Tanılar listesine aktarma';
+        outpatientStage = diagnosisCode + ' tanısını sağdaki Seçilen Tanılar listesine aktarma';
         assertPatient();
         // Hücre içeriğine normal bir çift tıklamanın tüm fare olaylarını gönder.
         for (const [type, detail] of [
@@ -631,11 +651,11 @@
             button: 0, buttons: type === 'mousedown' ? 1 : 0, detail
           }));
         }
-        await waitFor(() => diagnosisCells(dialog).length > options.length ||
-          (!diagnosisWindowIsOpen(dialog) && diagnosisCells(root).length > 0));
+        await waitFor(() => diagnosisCells(dialog, diagnosisCode).length > options.length ||
+          (!diagnosisWindowIsOpen(dialog) && diagnosisCells(root, diagnosisCode).length > 0));
         outpatientStage = 'Tamam sonrası tanının ana ekranda görünmesini bekleme';
         if (diagnosisWindowIsOpen(dialog)) uniqueAction(dialog, 'tamam').click();
-        await waitFor(() => !diagnosisWindowIsOpen(dialog) && diagnosisCells(root).length > 0);
+        await waitFor(() => !diagnosisWindowIsOpen(dialog) && diagnosisCells(root, diagnosisCode).length > 0);
       }
       assertPatient();
       outpatientStage = 'Doktor Notları alanını bulma';
@@ -662,12 +682,15 @@
       outpatientStage = 'Notun alana aktarılmasını doğrulama';
       await waitFor(() => note.value === next);
       assertPatient();
-      if (!note.isConnected || note.value !== next || !diagnosisCells(root).length) {
+      if (!unitField.isConnected || unitField.value !== unitSnapshot) {
+        throw new Error('Poliklinik birimi değişti. Kayıt yapılmadı.');
+      }
+      if (!note.isConnected || note.value !== next || !diagnosisCells(root, diagnosisCode).length) {
         throw new Error('Tanı veya not değişti. Kayıt yapılmadı.');
       }
       uniqueAction(root, 'kaydet').click();
     } catch (error) {
-      alert('[3.6.6] Poliklinik: ' + error.message);
+      alert('[3.6.7] Poliklinik: ' + error.message);
     } finally {
       release();
     }
