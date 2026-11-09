@@ -1,4 +1,4 @@
-// Form Doldur uygulaması — sürüm 3.4.9
+// Form Doldur uygulaması — sürüm 3.4.10
 (() => {
   'use strict';
   if (!['http:', 'https:'].includes(location.protocol)) return;
@@ -77,7 +77,7 @@
   };
   const inspectFields = () => {
     document.getElementById('form-teknik-panel')?.remove();
-    const report = { version: '3.4.9', fields: [], saveButtons: [], choices: [] };
+    const report = { version: '3.4.10', fields: [], saveButtons: [], choices: [] };
     for (const { doc, path } of frameDocuments()) {
       const isVisible = element => element.getClientRects().length > 0 &&
         doc.defaultView.getComputedStyle(element).visibility !== 'hidden';
@@ -120,7 +120,7 @@
     panel.id = 'form-teknik-panel';
     panel.style.cssText = 'position:fixed;inset:10% 10%;z-index:2147483647;background:white;color:black;padding:20px;border:2px solid #333;box-shadow:0 4px 20px #0008;font:14px Arial;display:flex;flex-direction:column;gap:12px';
     const heading = document.createElement('strong');
-    heading.textContent = 'Alan tanıma raporu — 3.4.9';
+    heading.textContent = 'Alan tanıma raporu — 3.4.10';
     const note = document.createElement('div');
     note.textContent = 'Yalnızca hedef alanların teknik bilgileri. Alan değerleri ve hasta bilgileri rapora eklenmez. Rapor otomatik gönderilmez.';
     const output = document.createElement('textarea');
@@ -169,7 +169,16 @@
     }
     throw new Error(message);
   };
+  let activeFields = null;
   const findField = (doc, step) => {
+    if (activeFields?.doc === doc) {
+      const field = activeFields.fields.get(step.name);
+      if (!field?.isConnected || field.ownerDocument !== doc ||
+          field.getAttribute('name') !== step.name) {
+        throw new Error(step.label + ' alanı değişti. Kayıt yapılmadı.');
+      }
+      return field;
+    }
     const matches = [...doc.querySelectorAll('input[name="' + step.name + '"]')]
       .filter(shown);
     if (matches.length !== 1 || matches[0].disabled) {
@@ -263,14 +272,23 @@
         throw new Error('Açık onay veya uyarı penceresini kapatıp yeniden dene.');
       }
       const originals = shortcutSteps.map(step => findField(doc, step));
-      const sameForm = () => shortcutSteps.every((step, index) =>
-        findField(doc, step) === originals[index]);
+      activeFields = {
+        doc, fields: new Map(shortcutSteps.map((step, index) => [step.name, originals[index]]))
+      };
+      const sameForm = () => originals.every((field, index) =>
+        field.isConnected && field.ownerDocument === doc &&
+        field.getAttribute('name') === shortcutSteps[index].name);
       for (const step of shortcutSteps) {
         if (!sameForm()) throw new Error('Ekran değişti. Kayıt yapılmadı.');
         await chooseValue(doc, step);
       }
       if (!sameForm() || !shortcutSteps.every(step => expectedValue(doc, step))) {
         throw new Error('Dört seçim birlikte doğrulanamadı. Kayıt yapılmadı.');
+      }
+      await waitUntil(() => originals.every(field => shown(field) && !field.disabled),
+        'Seçim penceresi kapanmadı veya alanlar kullanılamıyor. Kayıt yapılmadı.');
+      if ([...doc.querySelectorAll('.x-message-box, [role="alertdialog"], [aria-modal="true"]')].some(shown)) {
+        throw new Error('Açık onay penceresi var. Kayıt yapılmadı.');
       }
       let scope = originals[0].parentElement;
       while (scope && !originals.every(field => scope.contains(field))) scope = scope.parentElement;
@@ -293,9 +311,10 @@
       saves[0].click();
       alert('Kaydet düğmesine bir kez basıldı. Kaydın sonucunu HBYS ekranından kontrol et.');
     } catch (error) {
-      alert('[3.4.9] ' + (saveClicked ? 'Kaydet işleminin sonucunu ekrandan kontrol et. ' : shortcutName + ' durdu: ') +
+      alert('[3.4.10] ' + (saveClicked ? 'Kaydet işleminin sonucunu ekrandan kontrol et. ' : shortcutName + ' durdu: ') +
         error.message);
     } finally {
+      activeFields = null;
       shortcutBusy = false;
     }
   };
