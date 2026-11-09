@@ -1,4 +1,4 @@
-// Form Doldur uygulaması — sürüm 3.6.0
+// Form Doldur uygulaması — sürüm 3.6.1
 (() => {
   'use strict';
   if (!['http:', 'https:'].includes(location.protocol)) return;
@@ -79,7 +79,7 @@
   };
   const inspectFields = () => {
     document.getElementById('form-teknik-panel')?.remove();
-    const report = { version: '3.6.0', fields: [], saveButtons: [], choices: [], actions: [], tabs: [], editors: [] };
+    const report = { version: '3.6.1', fields: [], saveButtons: [], choices: [], actions: [], tabs: [], editors: [] };
     for (const { doc, path } of frameDocuments()) {
       const isVisible = element => element.getClientRects().length > 0 &&
         doc.defaultView.getComputedStyle(element).visibility !== 'hidden';
@@ -147,7 +147,7 @@
     panel.id = 'form-teknik-panel';
     panel.style.cssText = 'position:fixed;inset:10% 10%;z-index:2147483647;background:white;color:black;padding:20px;border:2px solid #333;box-shadow:0 4px 20px #0008;font:14px Arial;display:flex;flex-direction:column;gap:12px';
     const heading = document.createElement('strong');
-    heading.textContent = 'Alan tanıma raporu — 3.6.0';
+    heading.textContent = 'Alan tanıma raporu — 3.6.1';
     const note = document.createElement('div');
     note.textContent = 'Yalnızca hedef alanların teknik bilgileri. Alan değerleri ve hasta bilgileri rapora eklenmez. Rapor otomatik gönderilmez.';
     const output = document.createElement('textarea');
@@ -171,7 +171,7 @@
   reportButton.id = 'poliklinik-rapor-dugmesi';
   reportButton.type = 'button';
   reportButton.textContent = 'T';
-  reportButton.title = 'Teknik raporu aç · 3.6.0';
+  reportButton.title = 'Teknik raporu aç · 3.6.1';
   reportButton.setAttribute('aria-label', 'Teknik raporu aç');
   reportButton.style.cssText = 'position:fixed;right:6px;top:50%;transform:translateY(-50%);z-index:2147483647;width:24px;height:24px;padding:0;border:1px solid white;border-radius:5px;background:#285c8c;color:white;font:bold 12px Arial,sans-serif;cursor:pointer';
   reportButton.addEventListener('click', inspectFields);
@@ -388,7 +388,7 @@
       saves[0].click();
       // Kaydet sonucunu HBYS gösterir; ek bilgi penceresi açma.
     } catch (error) {
-      alert('[3.6.0] ' + (saveClicked ? 'Kaydet işleminin sonucunu ekrandan kontrol et. ' : shortcutName + ' durdu: ') +
+      alert('[3.6.1] ' + (saveClicked ? 'Kaydet işleminin sonucunu ekrandan kontrol et. ' : shortcutName + ' durdu: ') +
         error.message);
     } finally {
       activeFields = null;
@@ -483,7 +483,8 @@
     )) {
       if (normalize(cell.textContent || '') !== 'z00.0') continue;
       const row = cell.closest('.x-grid-row, .x-grid3-row, .x-grid-item, [role="row"]');
-      if (row && !rows.has(row)) rows.set(row, cell);
+      const target = cell.querySelector('.x-grid-cell-inner, .x-grid3-cell-inner') || cell;
+      if (row && !rows.has(row)) rows.set(row, target);
     }
     return [...rows.values()];
   };
@@ -515,6 +516,7 @@
     shortcutBusy = true;
     outpatientButton.disabled = true;
     let reviewOpen = false;
+    let outpatientStage = 'Poliklinik ekranını bulma';
     const release = () => {
       outpatientRunning = false;
       shortcutBusy = false;
@@ -560,46 +562,58 @@
       const waitFor = find => waitUntil(() => {
         assertPatient();
         return find();
-      }, 'Beklenen Poliklinik adımı tamamlanmadı. Ekranı kontrol et.');
+      }, outpatientStage + ' tamamlanmadı. Kayıt yapılmadı.');
       assertPatient();
       if (diagnosisWindows(doc).length) throw new Error('Önce açık tanı listesini kapat.');
       const accepts = outpatientActions(root, 'kabul');
       if (accepts.length > 1) throw new Error('Birden fazla Kabul düğmesi bulundu.');
       if (accepts.length === 1) {
+        outpatientStage = 'Kabul sonrası Kaydet düğmesini bekleme';
         accepts[0].click();
         await waitFor(() => outpatientActions(root, 'kaydet').length === 1);
       } else if (outpatientActions(root, 'kaydet').length !== 1) {
         throw new Error('Kabul durumu belirlenemedi.');
       }
       assertPatient();
+      outpatientStage = 'Muayene Bilgileri sekmesini açma';
       openOutpatientTab(root, 'muayene bilgileri');
       await waitFor(() => outpatientTabs(root, 'muayene bilgileri')[0]?.className.includes('active'));
       if (!diagnosisCells(root).length) {
+        outpatientStage = 'Tanı Ekleme Listesi penceresini bulma';
         uniqueAction(root, 'ekle').click();
         const dialog = await waitFor(() => {
           const dialogs = diagnosisWindows(doc);
           if (dialogs.length > 1) throw new Error('Birden fazla tanı listesi açıldı.');
           return dialogs[0];
         });
+        outpatientStage = 'Listede Z00.0 satırını bulma';
         const options = await waitFor(() => {
           const cells = diagnosisCells(dialog).filter(shown);
           if (cells.length > 1) throw new Error('Z00.0 listede birden fazla satırda bulundu.');
           return cells.length === 1 ? cells : null;
         });
         const cell = options[0];
+        outpatientStage = 'Z00.0 tanısını sağdaki Seçilen Tanılar listesine aktarma';
         assertPatient();
-        cell.click();
-        if (cell.isConnected && shown(cell)) {
-          cell.dispatchEvent(new doc.defaultView.MouseEvent('dblclick', {
-            bubbles: true, cancelable: true, view: doc.defaultView
+        // Hücre içeriğine normal bir çift tıklamanın tüm fare olaylarını gönder.
+        for (const [type, detail] of [
+          ['mousedown', 1], ['mouseup', 1], ['click', 1],
+          ['mousedown', 2], ['mouseup', 2], ['click', 2], ['dblclick', 2]
+        ]) {
+          if (!cell.isConnected || !shown(cell) || !shown(dialog)) break;
+          cell.dispatchEvent(new doc.defaultView.MouseEvent(type, {
+            bubbles: true, cancelable: true, view: doc.defaultView,
+            button: 0, buttons: type === 'mousedown' ? 1 : 0, detail
           }));
         }
         await waitFor(() => diagnosisCells(dialog).length > options.length ||
           (!shown(dialog) && diagnosisCells(root).length > 0));
+        outpatientStage = 'Tamam sonrası tanının ana ekranda görünmesini bekleme';
         if (shown(dialog)) uniqueAction(dialog, 'tamam').click();
         await waitFor(() => !shown(dialog) && diagnosisCells(root).length > 0);
       }
       assertPatient();
+      outpatientStage = 'Doktor Notları alanını bulma';
       openOutpatientTab(root, 'doktor notları');
       const note = await waitFor(() => {
         const matches = [...root.querySelectorAll('textarea[name="sikayet"]')]
@@ -620,6 +634,7 @@
         note.dispatchEvent(new doc.defaultView.Event('change', { bubbles: true }));
         note.blur();
       }
+      outpatientStage = 'Notun alana aktarılmasını doğrulama';
       await waitFor(() => note.value === next);
       const panel = document.createElement('div');
       panel.id = 'poliklinik-kayit-kontrol';
@@ -646,14 +661,14 @@
         } catch (error) {
           panel.remove();
           release();
-          alert('[3.6.0] Poliklinik: ' + error.message);
+          alert('[3.6.1] Poliklinik: ' + error.message);
         }
       };
       panel.append(summary, save, dismiss);
       document.body.appendChild(panel);
       reviewOpen = true;
     } catch (error) {
-      alert('[3.6.0] Poliklinik: ' + error.message);
+      alert('[3.6.1] Poliklinik: ' + error.message);
     } finally {
       if (!reviewOpen) release();
     }
