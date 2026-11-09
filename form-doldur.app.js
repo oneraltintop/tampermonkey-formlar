@@ -1,4 +1,4 @@
-// Form Doldur uygulaması — sürüm 3.5.0
+// Form Doldur uygulaması — sürüm 3.5.1
 (() => {
   'use strict';
   if (!['http:', 'https:'].includes(location.protocol)) return;
@@ -79,7 +79,7 @@
   };
   const inspectFields = () => {
     document.getElementById('form-teknik-panel')?.remove();
-    const report = { version: '3.5.0', fields: [], saveButtons: [], choices: [], actions: [], tabs: [], editors: [] };
+    const report = { version: '3.5.1', fields: [], saveButtons: [], choices: [], actions: [], tabs: [], editors: [] };
     for (const { doc, path } of frameDocuments()) {
       const isVisible = element => element.getClientRects().length > 0 &&
         doc.defaultView.getComputedStyle(element).visibility !== 'hidden';
@@ -147,7 +147,7 @@
     panel.id = 'form-teknik-panel';
     panel.style.cssText = 'position:fixed;inset:10% 10%;z-index:2147483647;background:white;color:black;padding:20px;border:2px solid #333;box-shadow:0 4px 20px #0008;font:14px Arial;display:flex;flex-direction:column;gap:12px';
     const heading = document.createElement('strong');
-    heading.textContent = 'Alan tanıma raporu — 3.5.0';
+    heading.textContent = 'Alan tanıma raporu — 3.5.1';
     const note = document.createElement('div');
     note.textContent = 'Yalnızca hedef alanların teknik bilgileri. Alan değerleri ve hasta bilgileri rapora eklenmez. Rapor otomatik gönderilmez.';
     const output = document.createElement('textarea');
@@ -166,6 +166,16 @@
     panel.append(heading, note, output, select, close);
     document.body.appendChild(panel);
   };
+
+  const reportButton = document.createElement('button');
+  reportButton.id = 'poliklinik-rapor-dugmesi';
+  reportButton.type = 'button';
+  reportButton.textContent = 'T';
+  reportButton.title = 'Teknik raporu aç · 3.5.1';
+  reportButton.setAttribute('aria-label', 'Teknik raporu aç');
+  reportButton.style.cssText = 'position:fixed;right:6px;top:50%;transform:translateY(-50%);z-index:2147483647;width:24px;height:24px;padding:0;border:1px solid white;border-radius:5px;background:#285c8c;color:white;font:bold 12px Arial,sans-serif;cursor:pointer';
+  reportButton.addEventListener('click', inspectFields);
+  document.body.appendChild(reportButton);
 
   // Alt+1 / Alt+2: yalnızca raporda doğrulanmış alan adlarıyla çalış.
   let shortcutBusy = false;
@@ -378,7 +388,7 @@
       saves[0].click();
       // Kaydet sonucunu HBYS gösterir; ek bilgi penceresi açma.
     } catch (error) {
-      alert('[3.5.0] ' + (saveClicked ? 'Kaydet işleminin sonucunu ekrandan kontrol et. ' : shortcutName + ' durdu: ') +
+      alert('[3.5.1] ' + (saveClicked ? 'Kaydet işleminin sonucunu ekrandan kontrol et. ' : shortcutName + ' durdu: ') +
         error.message);
     } finally {
       activeFields = null;
