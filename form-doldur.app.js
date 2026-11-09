@@ -1,4 +1,4 @@
-// Form Doldur uygulaması — sürüm 3.4.7
+// Form Doldur uygulaması — sürüm 3.4.8
 (() => {
   'use strict';
   if (!['http:', 'https:'].includes(location.protocol)) return;
@@ -77,7 +77,7 @@
   };
   const inspectFields = () => {
     document.getElementById('form-teknik-panel')?.remove();
-    const report = { version: '3.4.7', fields: [], saveButtons: [], choices: [] };
+    const report = { version: '3.4.8', fields: [], saveButtons: [], choices: [] };
     for (const { doc, path } of frameDocuments()) {
       const isVisible = element => element.getClientRects().length > 0 &&
         doc.defaultView.getComputedStyle(element).visibility !== 'hidden';
@@ -120,7 +120,7 @@
     panel.id = 'form-teknik-panel';
     panel.style.cssText = 'position:fixed;inset:10% 10%;z-index:2147483647;background:white;color:black;padding:20px;border:2px solid #333;box-shadow:0 4px 20px #0008;font:14px Arial;display:flex;flex-direction:column;gap:12px';
     const heading = document.createElement('strong');
-    heading.textContent = 'Alan tanıma raporu — 3.4.7';
+    heading.textContent = 'Alan tanıma raporu — 3.4.8';
     const note = document.createElement('div');
     note.textContent = 'Yalnızca hedef alanların teknik bilgileri. Alan değerleri ve hasta bilgileri rapora eklenmez. Rapor otomatik gönderilmez.';
     const output = document.createElement('textarea');
@@ -177,8 +177,15 @@
     }
     return matches[0];
   };
+  const matchesChoice = (text, step) => {
+    let actual = normalize(text);
+    const expected = normalize(step.value);
+    // Birim listesi adın sonunda parantez içinde yer bilgisi gösterebilir.
+    if (step.name === 'birim') actual = actual.replace(/\s*\([^()]+\)\s*$/u, '').trim();
+    return actual === expected;
+  };
   const expectedValue = (doc, step) =>
-    normalize(findField(doc, step).value) === normalize(step.value);
+    matchesChoice(findField(doc, step).value, step);
   const chooseValue = async (doc, step) => {
     if (expectedValue(doc, step)) return;
     const field = findField(doc, step);
@@ -200,7 +207,7 @@
         for (const item of root.querySelectorAll(
           '.x-boundlist-item, .x-combo-list-item, [role="option"], .x-grid-cell-inner'
         )) {
-          if (!shown(item) || normalize(item.textContent || '') !== normalize(step.value)) continue;
+          if (!shown(item) || !matchesChoice(item.textContent || '', step)) continue;
           const row = item.closest('.x-grid-row');
           const target = row || item;
           if (target.closest('[aria-disabled="true"], .x-item-disabled')) continue;
