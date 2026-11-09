@@ -1,4 +1,4 @@
-// Form Doldur uygulaması — sürüm 3.4.11
+// Form Doldur uygulaması — sürüm 3.4.12
 (() => {
   'use strict';
   if (!['http:', 'https:'].includes(location.protocol)) return;
@@ -77,7 +77,7 @@
   };
   const inspectFields = () => {
     document.getElementById('form-teknik-panel')?.remove();
-    const report = { version: '3.4.11', fields: [], saveButtons: [], choices: [] };
+    const report = { version: '3.4.12', fields: [], saveButtons: [], choices: [] };
     for (const { doc, path } of frameDocuments()) {
       const isVisible = element => element.getClientRects().length > 0 &&
         doc.defaultView.getComputedStyle(element).visibility !== 'hidden';
@@ -120,7 +120,7 @@
     panel.id = 'form-teknik-panel';
     panel.style.cssText = 'position:fixed;inset:10% 10%;z-index:2147483647;background:white;color:black;padding:20px;border:2px solid #333;box-shadow:0 4px 20px #0008;font:14px Arial;display:flex;flex-direction:column;gap:12px';
     const heading = document.createElement('strong');
-    heading.textContent = 'Alan tanıma raporu — 3.4.11';
+    heading.textContent = 'Alan tanıma raporu — 3.4.12';
     const note = document.createElement('div');
     note.textContent = 'Yalnızca hedef alanların teknik bilgileri. Alan değerleri ve hasta bilgileri rapora eklenmez. Rapor otomatik gönderilmez.';
     const output = document.createElement('textarea');
@@ -349,9 +349,9 @@
       }
       saveClicked = true;
       saves[0].click();
-      alert('Kaydet düğmesine bir kez basıldı. Kaydın sonucunu HBYS ekranından kontrol et.');
+      // Kaydet sonucunu HBYS gösterir; ek bilgi penceresi açma.
     } catch (error) {
-      alert('[3.4.11] ' + (saveClicked ? 'Kaydet işleminin sonucunu ekrandan kontrol et. ' : shortcutName + ' durdu: ') +
+      alert('[3.4.12] ' + (saveClicked ? 'Kaydet işleminin sonucunu ekrandan kontrol et. ' : shortcutName + ' durdu: ') +
         error.message);
     } finally {
       activeFields = null;
@@ -394,18 +394,23 @@
         event.keyCode === 50 || event.keyCode === 98) return 2;
     return 0;
   };
+  const pressedShortcuts = new Set();
   const watched = new WeakSet();
   const bindDiagnostics = () => {
     for (const { doc } of frameDocuments()) {
       const view = doc.defaultView;
       if (!view || watched.has(view)) continue;
       watched.add(view);
+      view.addEventListener('keyup', () => { pressedShortcuts.clear(); }, true);
+      view.addEventListener('blur', () => { pressedShortcuts.clear(); }, true);
       view.addEventListener('keydown', event => {
         const number = shortcutNumber(event);
         if (number) {
           event.preventDefault();
           event.stopPropagation();
-          if (!event.repeat) void runShortcut(number === 2 ? 'Pansuman' : 'Enjeksiyon');
+          if (event.repeat || pressedShortcuts.has(number)) return;
+          pressedShortcuts.add(number);
+          void runShortcut(number === 2 ? 'Pansuman' : 'Enjeksiyon');
           return;
         }
         if (event.altKey && event.shiftKey && !event.ctrlKey && !event.metaKey &&
