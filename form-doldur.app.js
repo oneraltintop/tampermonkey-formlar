@@ -1,4 +1,4 @@
-// Form Doldur uygulaması — sürüm 3.4.17
+// Form Doldur uygulaması — sürüm 3.5.0
 (() => {
   'use strict';
   if (!['http:', 'https:'].includes(location.protocol)) return;
@@ -44,7 +44,9 @@
     ['acil-gelis', /^(acil )?geliş şekli$/u],
     ['triaj', /^triaj( kodu)?$/u],
     ['birim', /^birim$/u],
-    ['doktor', /^doktor$/u]
+    ['doktor', /^doktor$/u],
+    ['doktor-notlari', /^doktor notları$/u],
+    ['tani-arama', /^arama$/u]
   ];
   const cleanLabel = text => normalize(text).replace(/[:*]+$/g, '').trim();
   const technical = text => (text || '').slice(0, 160)
@@ -77,7 +79,7 @@
   };
   const inspectFields = () => {
     document.getElementById('form-teknik-panel')?.remove();
-    const report = { version: '3.4.17', fields: [], saveButtons: [], choices: [] };
+    const report = { version: '3.5.0', fields: [], saveButtons: [], choices: [], actions: [], tabs: [], editors: [] };
     for (const { doc, path } of frameDocuments()) {
       const isVisible = element => element.getClientRects().length > 0 &&
         doc.defaultView.getComputedStyle(element).visibility !== 'hidden';
@@ -94,10 +96,10 @@
         const linked = label.getAttribute('for');
         if (linked) addField(target[0], doc.getElementById(linked));
         const container = label.closest('.x-form-item, .x-field, .form-group') || label.parentElement;
-        container?.querySelectorAll('input, select, button, [role="combobox"], .x-form-trigger')
+        container?.querySelectorAll('input, textarea, select, button, [role="combobox"], .x-form-trigger')
           .forEach(element => addField(target[0], element));
       }
-      for (const field of doc.querySelectorAll('input, select, [role="combobox"]')) {
+      for (const field of doc.querySelectorAll('input, textarea, select, [role="combobox"]')) {
         const target = diagnosticTargets.find(([, pattern]) =>
           pattern.test(cleanLabel(field.getAttribute('aria-label') || '')));
         if (target) addField(target[0], field);
@@ -107,6 +109,31 @@
         if (isVisible(button) && /^(kaydet|kaydet \[f\d+\]|kaydet \(f\d+\))$/u
           .test(cleanLabel(button.textContent || button.getAttribute('aria-label') || ''))) {
           report.saveButtons.push({ frame: path, label: 'kaydet', ...describe(button) });
+        }
+      }
+      for (const action of doc.querySelectorAll('button, a[role="button"], .x-btn')) {
+        if (!isVisible(action)) continue;
+        const label = cleanLabel(action.textContent || action.getAttribute('aria-label') || '');
+        if (/^(kabul|hasta kabul|ekle|tanı ekle|tamam|kaydet)(\s*[[(]f\d+[)\]])?$/u.test(label)) {
+          report.actions.push({ frame: path, label, ...describe(action) });
+        }
+      }
+      for (const tab of doc.querySelectorAll('[role="tab"], .x-tab')) {
+        if (!isVisible(tab)) continue;
+        const label = cleanLabel(tab.textContent || '');
+        if (['doktor notları', 'muayene bilgileri', 'tanılar', 'sık kullanılan tanılar'].includes(label)) {
+          report.tabs.push({ frame: path, label, ...describe(tab) });
+        }
+      }
+      // Yalnızca editör öğelerinin yapısı; yazılı notlar veya HTML içeriği alınmaz.
+      for (const editor of doc.querySelectorAll('textarea, [contenteditable="true"]')) {
+        if (isVisible(editor) && editor.id !== 'form-teknik-panel') {
+          report.editors.push({ frame: path, ...describe(editor) });
+        }
+      }
+      for (const cell of doc.querySelectorAll('.x-grid-cell-inner, .x-grid3-cell-inner, [role="gridcell"]')) {
+        if (isVisible(cell) && normalize(cell.textContent || '') === 'z00.0') {
+          report.choices.push({ frame: path, label: 'z00.0', ...describe(cell) });
         }
       }
       for (const option of doc.querySelectorAll('[role="option"], .x-boundlist-item, .x-combo-list-item')) {
@@ -120,7 +147,7 @@
     panel.id = 'form-teknik-panel';
     panel.style.cssText = 'position:fixed;inset:10% 10%;z-index:2147483647;background:white;color:black;padding:20px;border:2px solid #333;box-shadow:0 4px 20px #0008;font:14px Arial;display:flex;flex-direction:column;gap:12px';
     const heading = document.createElement('strong');
-    heading.textContent = 'Alan tanıma raporu — 3.4.17';
+    heading.textContent = 'Alan tanıma raporu — 3.5.0';
     const note = document.createElement('div');
     note.textContent = 'Yalnızca hedef alanların teknik bilgileri. Alan değerleri ve hasta bilgileri rapora eklenmez. Rapor otomatik gönderilmez.';
     const output = document.createElement('textarea');
@@ -351,7 +378,7 @@
       saves[0].click();
       // Kaydet sonucunu HBYS gösterir; ek bilgi penceresi açma.
     } catch (error) {
-      alert('[3.4.17] ' + (saveClicked ? 'Kaydet işleminin sonucunu ekrandan kontrol et. ' : shortcutName + ' durdu: ') +
+      alert('[3.5.0] ' + (saveClicked ? 'Kaydet işleminin sonucunu ekrandan kontrol et. ' : shortcutName + ' durdu: ') +
         error.message);
     } finally {
       activeFields = null;
