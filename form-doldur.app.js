@@ -1,4 +1,4 @@
-// Form Doldur uygulaması — sürüm 3.4.1
+// Form Doldur uygulaması — sürüm 3.4.2
 (() => {
   'use strict';
   if (!['http:', 'https:'].includes(location.protocol)) return;
@@ -77,7 +77,7 @@
   };
   const inspectFields = () => {
     document.getElementById('form-teknik-panel')?.remove();
-    const report = { version: '3.4.1', fields: [], saveButtons: [], choices: [] };
+    const report = { version: '3.4.2', fields: [], saveButtons: [], choices: [] };
     for (const { doc, path } of frameDocuments()) {
       const isVisible = element => element.getClientRects().length > 0 &&
         doc.defaultView.getComputedStyle(element).visibility !== 'hidden';
@@ -111,7 +111,7 @@
       }
       for (const option of doc.querySelectorAll('[role="option"], .x-boundlist-item, .x-combo-list-item')) {
         const label = cleanLabel(option.textContent || '');
-        if (isVisible(option) && ['araç', 'yeşil', 'enjeksiyon', 'sevgi sever'].includes(label)) {
+        if (isVisible(option) && ['araç', 'yeşil', 'enjeksiyon', 'pansuman', 'sevgi sever'].includes(label)) {
           report.choices.push({ frame: path, label, ...describe(option) });
         }
       }
@@ -120,7 +120,7 @@
     panel.id = 'form-teknik-panel';
     panel.style.cssText = 'position:fixed;inset:10% 10%;z-index:2147483647;background:white;color:black;padding:20px;border:2px solid #333;box-shadow:0 4px 20px #0008;font:14px Arial;display:flex;flex-direction:column;gap:12px';
     const heading = document.createElement('strong');
-    heading.textContent = 'Alan tanıma raporu — 3.4.1';
+    heading.textContent = 'Alan tanıma raporu — 3.4.2';
     const note = document.createElement('div');
     note.textContent = 'Yalnızca hedef alanların teknik bilgileri. Alan değerleri ve hasta bilgileri rapora eklenmez. Rapor otomatik gönderilmez.';
     const output = document.createElement('textarea');
@@ -140,9 +140,9 @@
     document.body.appendChild(panel);
   };
 
-  // Alt+1: yalnızca raporda doğrulanmış alan adlarıyla çalış.
+  // Alt+1 / Alt+2: yalnızca raporda doğrulanmış alan adlarıyla çalış.
   let shortcutBusy = false;
-  const shortcutSteps = [
+  const baseSteps = [
     { name: 'acilGelisSekli', label: 'Acil Geliş Şekli', value: 'Araç' },
     { name: 'triaj', label: 'Triaj Kodu', value: 'Yeşil' },
     { name: 'birim', label: 'Birim', value: 'Enjeksiyon' },
@@ -211,8 +211,11 @@
     await waitUntil(() => expectedValue(doc, step),
       step.label + ' seçimi doğrulanamadı. Kayıt yapılmadı.');
   };
-  const runShortcut = async () => {
+  const runShortcut = async (unit = 'Enjeksiyon') => {
     if (shortcutBusy) return;
+    if (!['Enjeksiyon', 'Pansuman'].includes(unit)) return;
+    const shortcutSteps = baseSteps.map(step => step.name === 'birim' ? { ...step, value: unit } : step);
+    const shortcutName = unit === 'Pansuman' ? 'Alt+2' : 'Alt+1';
     shortcutBusy = true;
     let saveClicked = false;
     try {
@@ -259,7 +262,7 @@
       saves[0].click();
       alert('Kaydet düğmesine bir kez basıldı. Kaydın sonucunu HBYS ekranından kontrol et.');
     } catch (error) {
-      alert((saveClicked ? 'Kaydet işleminin sonucunu ekrandan kontrol et. ' : 'Alt+1 durdu: ') +
+      alert((saveClicked ? 'Kaydet işleminin sonucunu ekrandan kontrol et. ' : shortcutName + ' durdu: ') +
         error.message);
     } finally {
       shortcutBusy = false;
@@ -267,24 +270,28 @@
   };
 
 
-  const trialButton = document.createElement('button');
-  trialButton.id = 'hasta-kayit-deneme';
-  trialButton.type = 'button';
-  trialButton.textContent = 'Alt+1 işlemini çalıştır';
-  trialButton.title = 'Araç → Yeşil → Enjeksiyon → Sevgi Sever → Kaydet';
-  trialButton.style.cssText = 'position:fixed;bottom:24px;left:24px;z-index:2147483647;background:#176b48;color:white;border:0;border-radius:8px;padding:12px 16px;font:14px Arial,sans-serif;cursor:pointer';
-  trialButton.addEventListener('click', async () => {
-    if (shortcutBusy) return;
-    trialButton.disabled = true;
-    trialButton.textContent = 'İşlem sürüyor…';
-    try {
-      await runShortcut();
-    } finally {
-      trialButton.disabled = false;
-      trialButton.textContent = 'Alt+1 işlemini çalıştır';
-    }
-  });
-  document.body.appendChild(trialButton);
+  for (const [index, unit] of ['Enjeksiyon', 'Pansuman'].entries()) {
+    const trialButton = document.createElement('button');
+    const label = 'Alt+' + (index + 1) + ' · ' + unit;
+    trialButton.id = 'hasta-kayit-deneme-' + (index + 1);
+    trialButton.type = 'button';
+    trialButton.textContent = label;
+    trialButton.title = 'Araç → Yeşil → ' + unit + ' → Sevgi Sever → Kaydet';
+    trialButton.style.cssText = 'position:fixed;bottom:' + (24 + index * 52) +
+      'px;left:24px;z-index:2147483647;background:#176b48;color:white;border:0;border-radius:8px;padding:12px 16px;font:14px Arial,sans-serif;cursor:pointer';
+    trialButton.addEventListener('click', async () => {
+      if (shortcutBusy) return;
+      trialButton.disabled = true;
+      trialButton.textContent = 'İşlem sürüyor…';
+      try {
+        await runShortcut(unit);
+      } finally {
+        trialButton.disabled = false;
+        trialButton.textContent = label;
+      }
+    });
+    document.body.appendChild(trialButton);
+  }
 
   const watched = new WeakSet();
   const bindDiagnostics = () => {
@@ -293,9 +300,9 @@
       watched.add(doc);
       doc.addEventListener('keydown', event => {
         if (event.altKey && !event.shiftKey && !event.ctrlKey && !event.metaKey &&
-            (event.code === 'Digit1' || event.code === 'Numpad1')) {
+            ['Digit1', 'Numpad1', 'Digit2', 'Numpad2'].includes(event.code)) {
           event.preventDefault();
-          if (!event.repeat) void runShortcut();
+          if (!event.repeat) void runShortcut(event.code.endsWith('2') ? 'Pansuman' : 'Enjeksiyon');
           return;
         }
         if (event.altKey && event.shiftKey && !event.ctrlKey && !event.metaKey &&
