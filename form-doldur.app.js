@@ -1,4 +1,4 @@
-// Form Doldur uygulaması — sürüm 3.2.3
+// Form Doldur uygulaması — sürüm 3.2.4
 (() => {
   'use strict';
   if (!['http:', 'https:'].includes(location.protocol)) return;
@@ -19,23 +19,36 @@
   document.body.appendChild(marker);
   const lastAttempt = new WeakMap();
   const visible = element => element.getClientRects().length > 0 &&
-    getComputedStyle(element).visibility !== 'hidden';
+    element.ownerDocument.defaultView.getComputedStyle(element).visibility !== 'hidden';
+
+  const collectDialogs = (doc, visited = new Set()) => {
+    if (visited.has(doc)) return [];
+    visited.add(doc);
+    const dialogs = [...doc.querySelectorAll('.x-window, [role="dialog"], .ui-dialog')];
+    for (const frame of doc.querySelectorAll('iframe, frame')) {
+      if (!visible(frame)) continue;
+      try {
+        if (frame.contentDocument) dialogs.push(...collectDialogs(frame.contentDocument, visited));
+      } catch (_) {
+        // Tarayıcının farklı site çerçevelerine koyduğu erişim sınırını koru.
+      }
+    }
+    return dialogs;
+  };
 
   const scan = () => {
-    const dialogs = [...document.querySelectorAll(
-      '.x-window, [role="dialog"], .ui-dialog'
-    )].filter(visible).reverse();
+    const dialogs = collectDialogs(document).filter(visible).reverse();
     // Üstteki pencereyi önce kapat, alttakini sonraki turda ele al.
     dialogs.sort((a, b) =>
-      (parseInt(getComputedStyle(b).zIndex, 10) || 0) -
-      (parseInt(getComputedStyle(a).zIndex, 10) || 0)
+      (parseInt(b.ownerDocument.defaultView.getComputedStyle(b).zIndex, 10) || 0) -
+      (parseInt(a.ownerDocument.defaultView.getComputedStyle(a).zIndex, 10) || 0)
     );
     for (const dialog of dialogs) {
       const heading = dialog.querySelector(
         '.x-window-header-text, .x-title-text, .ui-dialog-title'
       );
       const labelled = (dialog.getAttribute('aria-labelledby') || '').split(/\s+/)
-        .filter(Boolean).map(id => document.getElementById(id)?.textContent || '').join(' ');
+        .filter(Boolean).map(id => dialog.ownerDocument.getElementById(id)?.textContent || '').join(' ');
       const title = normalize(
         heading?.textContent || labelled || dialog.getAttribute('aria-label') || ''
       ).replace(/\s*[:!…]+$/, '');
