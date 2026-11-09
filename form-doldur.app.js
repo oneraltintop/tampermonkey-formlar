@@ -1,4 +1,4 @@
-// Form Doldur uygulaması — sürüm 3.4.14
+// Form Doldur uygulaması — sürüm 3.4.15
 (() => {
   'use strict';
   if (!['http:', 'https:'].includes(location.protocol)) return;
@@ -77,7 +77,7 @@
   };
   const inspectFields = () => {
     document.getElementById('form-teknik-panel')?.remove();
-    const report = { version: '3.4.14', fields: [], saveButtons: [], choices: [] };
+    const report = { version: '3.4.15', fields: [], saveButtons: [], choices: [] };
     for (const { doc, path } of frameDocuments()) {
       const isVisible = element => element.getClientRects().length > 0 &&
         doc.defaultView.getComputedStyle(element).visibility !== 'hidden';
@@ -120,7 +120,7 @@
     panel.id = 'form-teknik-panel';
     panel.style.cssText = 'position:fixed;inset:10% 10%;z-index:2147483647;background:white;color:black;padding:20px;border:2px solid #333;box-shadow:0 4px 20px #0008;font:14px Arial;display:flex;flex-direction:column;gap:12px';
     const heading = document.createElement('strong');
-    heading.textContent = 'Alan tanıma raporu — 3.4.14';
+    heading.textContent = 'Alan tanıma raporu — 3.4.15';
     const note = document.createElement('div');
     note.textContent = 'Yalnızca hedef alanların teknik bilgileri. Alan değerleri ve hasta bilgileri rapora eklenmez. Rapor otomatik gönderilmez.';
     const output = document.createElement('textarea');
@@ -351,7 +351,7 @@
       saves[0].click();
       // Kaydet sonucunu HBYS gösterir; ek bilgi penceresi açma.
     } catch (error) {
-      alert('[3.4.14] ' + (saveClicked ? 'Kaydet işleminin sonucunu ekrandan kontrol et. ' : shortcutName + ' durdu: ') +
+      alert('[3.4.15] ' + (saveClicked ? 'Kaydet işleminin sonucunu ekrandan kontrol et. ' : shortcutName + ' durdu: ') +
         error.message);
     } finally {
       activeFields = null;
@@ -360,6 +360,68 @@
   };
 
 
+
+
+  const focusIdentity = () => {
+    if (shortcutBusy) return;
+    const matches = new Set();
+    for (const { doc } of frameDocuments()) {
+      // Yalnızca hasta kayıt alanlarını içeren belgeyi tara.
+      if (!doc.querySelector('input[name="birim"]') ||
+          !doc.querySelector('input[name="personel"]')) continue;
+      for (const label of doc.querySelectorAll('label, .x-form-item-label')) {
+        const text = cleanLabel(label.textContent || '').replace(/[.]/g, '');
+        if (!['kimlik no', 'tc kimlik no', 'kimlik numarası'].includes(text)) continue;
+        if (!shown(label)) continue;
+        const linked = label.getAttribute('for');
+        const input = linked ? doc.getElementById(linked) :
+          label.closest('.x-form-item, .x-field')?.querySelector('input:not([type="hidden"])');
+        if (input && shown(input) && !input.disabled && !input.readOnly) matches.add(input);
+      }
+    }
+    if (matches.size !== 1) {
+      alert('Kimlik No alanı tek ve kullanılabilir olarak bulunamadı. İşlem yapılmadı.');
+      return;
+    }
+    const input = [...matches][0];
+    input.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+    input.focus();
+  };
+  const createCtrlTapHandler = onDouble => {
+    let down = false;
+    let clean = false;
+    let lastTap = null;
+    const isCtrl = event => event.key === 'Control' ||
+      event.code === 'ControlLeft' || event.code === 'ControlRight';
+    return {
+      keydown(event) {
+        if (isCtrl(event)) {
+          if (down || event.repeat) return;
+          down = true;
+          clean = !event.altKey && !event.shiftKey && !event.metaKey;
+          if (!clean) lastTap = null;
+        } else {
+          clean = false;
+          lastTap = null;
+        }
+      },
+      keyup(event) {
+        if (!isCtrl(event)) return;
+        const standalone = down && clean && !event.altKey && !event.shiftKey && !event.metaKey;
+        down = false;
+        clean = false;
+        if (!standalone) { lastTap = null; return; }
+        const now = Date.now();
+        if (lastTap !== null && now - lastTap <= 500) {
+          lastTap = null;
+          onDouble();
+        } else {
+          lastTap = now;
+        }
+      },
+      reset() { down = false; clean = false; lastTap = null; }
+    };
+  };
 
   const shortcutNumber = event => {
     if (!event.altKey || event.shiftKey || event.ctrlKey || event.metaKey) return 0;
@@ -376,9 +438,17 @@
       const view = doc.defaultView;
       if (!view || watched.has(view)) continue;
       watched.add(view);
-      view.addEventListener('keyup', () => { pressedShortcuts.clear(); }, true);
-      view.addEventListener('blur', () => { pressedShortcuts.clear(); }, true);
+      const ctrlTap = createCtrlTapHandler(focusIdentity);
+      view.addEventListener('keyup', event => {
+        pressedShortcuts.clear();
+        ctrlTap.keyup(event);
+      }, true);
+      view.addEventListener('blur', () => {
+        pressedShortcuts.clear();
+        ctrlTap.reset();
+      }, true);
       view.addEventListener('keydown', event => {
+        ctrlTap.keydown(event);
         const number = shortcutNumber(event);
         if (number) {
           event.preventDefault();
