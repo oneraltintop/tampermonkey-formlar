@@ -1,4 +1,4 @@
-// Form Doldur uygulaması — sürüm 3.4.13
+// Form Doldur uygulaması — sürüm 3.4.14
 (() => {
   'use strict';
   if (!['http:', 'https:'].includes(location.protocol)) return;
@@ -77,7 +77,7 @@
   };
   const inspectFields = () => {
     document.getElementById('form-teknik-panel')?.remove();
-    const report = { version: '3.4.13', fields: [], saveButtons: [], choices: [] };
+    const report = { version: '3.4.14', fields: [], saveButtons: [], choices: [] };
     for (const { doc, path } of frameDocuments()) {
       const isVisible = element => element.getClientRects().length > 0 &&
         doc.defaultView.getComputedStyle(element).visibility !== 'hidden';
@@ -120,7 +120,7 @@
     panel.id = 'form-teknik-panel';
     panel.style.cssText = 'position:fixed;inset:10% 10%;z-index:2147483647;background:white;color:black;padding:20px;border:2px solid #333;box-shadow:0 4px 20px #0008;font:14px Arial;display:flex;flex-direction:column;gap:12px';
     const heading = document.createElement('strong');
-    heading.textContent = 'Alan tanıma raporu — 3.4.13';
+    heading.textContent = 'Alan tanıma raporu — 3.4.14';
     const note = document.createElement('div');
     note.textContent = 'Yalnızca hedef alanların teknik bilgileri. Alan değerleri ve hasta bilgileri rapora eklenmez. Rapor otomatik gönderilmez.';
     const output = document.createElement('textarea');
@@ -351,7 +351,7 @@
       saves[0].click();
       // Kaydet sonucunu HBYS gösterir; ek bilgi penceresi açma.
     } catch (error) {
-      alert('[3.4.13] ' + (saveClicked ? 'Kaydet işleminin sonucunu ekrandan kontrol et. ' : shortcutName + ' durdu: ') +
+      alert('[3.4.14] ' + (saveClicked ? 'Kaydet işleminin sonucunu ekrandan kontrol et. ' : shortcutName + ' durdu: ') +
         error.message);
     } finally {
       activeFields = null;
@@ -360,31 +360,6 @@
   };
 
 
-
-  const miniControls = document.createElement('div');
-  miniControls.id = 'hasta-kayit-mini';
-  miniControls.style.cssText = 'position:fixed;right:6px;top:50%;transform:translateY(-50%);z-index:2147483647;display:flex;flex-direction:column;gap:6px';
-  const miniButtons = [];
-  for (const [text, unit] of [['E', 'Enjeksiyon'], ['P', 'Pansuman']]) {
-    const button = document.createElement('button');
-    button.type = 'button';
-    button.textContent = text;
-    button.title = unit + ' · Araç → Yeşil → Sevgi Sever → Kaydet';
-    button.setAttribute('aria-label', unit + ' seç ve kaydet');
-    button.style.cssText = 'width:22px;height:22px;padding:0;border:1px solid #fff;border-radius:6px;background:#176b48;color:white;font:bold 11px Arial,sans-serif;cursor:pointer;box-shadow:0 1px 4px #0005';
-    button.addEventListener('click', async () => {
-      if (shortcutBusy) return;
-      miniButtons.forEach(item => { item.disabled = true; });
-      try {
-        await runShortcut(unit);
-      } finally {
-        miniButtons.forEach(item => { item.disabled = false; });
-      }
-    });
-    miniButtons.push(button);
-    miniControls.appendChild(button);
-  }
-  document.body.appendChild(miniControls);
 
   const shortcutNumber = event => {
     if (!event.altKey || event.shiftKey || event.ctrlKey || event.metaKey) return 0;
