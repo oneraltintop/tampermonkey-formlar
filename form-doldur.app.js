@@ -1,4 +1,4 @@
-// Form Doldur uygulaması — sürüm 3.4.5
+// Form Doldur uygulaması — sürüm 3.4.6
 (() => {
   'use strict';
   if (!['http:', 'https:'].includes(location.protocol)) return;
@@ -77,7 +77,7 @@
   };
   const inspectFields = () => {
     document.getElementById('form-teknik-panel')?.remove();
-    const report = { version: '3.4.5', fields: [], saveButtons: [], choices: [] };
+    const report = { version: '3.4.6', fields: [], saveButtons: [], choices: [] };
     for (const { doc, path } of frameDocuments()) {
       const isVisible = element => element.getClientRects().length > 0 &&
         doc.defaultView.getComputedStyle(element).visibility !== 'hidden';
@@ -120,7 +120,7 @@
     panel.id = 'form-teknik-panel';
     panel.style.cssText = 'position:fixed;inset:10% 10%;z-index:2147483647;background:white;color:black;padding:20px;border:2px solid #333;box-shadow:0 4px 20px #0008;font:14px Arial;display:flex;flex-direction:column;gap:12px';
     const heading = document.createElement('strong');
-    heading.textContent = 'Alan tanıma raporu — 3.4.5';
+    heading.textContent = 'Alan tanıma raporu — 3.4.6';
     const note = document.createElement('div');
     note.textContent = 'Yalnızca hedef alanların teknik bilgileri. Alan değerleri ve hasta bilgileri rapora eklenmez. Rapor otomatik gönderilmez.';
     const output = document.createElement('textarea');
@@ -148,8 +148,17 @@
     { name: 'birim', label: 'Birim', value: 'Enjeksiyon' },
     { name: 'personel', label: 'Doktor', value: 'Sevgi Sever' }
   ];
-  const shown = element => element.isConnected && element.getClientRects().length > 0 &&
-    element.ownerDocument.defaultView.getComputedStyle(element).visibility !== 'hidden';
+  const shown = element => {
+    if (!element.isConnected || !element.getClientRects().length) return false;
+    const view = element.ownerDocument.defaultView;
+    const style = view.getComputedStyle(element);
+    if (style.visibility === 'hidden' || style.display === 'none') return false;
+    // Ext JS gizli pencereleri ekranın çok dışına taşıyabilir.
+    const rect = element.getBoundingClientRect();
+    return rect.width > 0 && rect.height > 0 &&
+      rect.right > 0 && rect.bottom > 0 &&
+      rect.left < view.innerWidth && rect.top < view.innerHeight;
+  };
   const pause = ms => new Promise(resolve => setTimeout(resolve, ms));
   const waitUntil = async (find, message) => {
     const deadline = Date.now() + 8000;
@@ -228,8 +237,12 @@
         ));
       if (docs.length !== 1) throw new Error('Hasta kayıt alanlarının bulunduğu tek ekran belirlenemedi.');
       const doc = docs[0].doc;
-      if ([...doc.querySelectorAll('.x-window, [role="dialog"], .ui-dialog')].some(shown)) {
-        throw new Error('Önce açık bildirim veya seçim pencerelerini kapat.');
+      // Ana HBYS ekranı da .x-window olabilir; onu bildirim sayma.
+      const blockingDialogs = [...doc.querySelectorAll(
+        '.x-message-box, [role="alertdialog"], [aria-modal="true"]'
+      )].filter(shown);
+      if (blockingDialogs.length) {
+        throw new Error('Açık onay veya uyarı penceresini kapatıp yeniden dene.');
       }
       const originals = shortcutSteps.map(step => findField(doc, step));
       const sameForm = () => shortcutSteps.every((step, index) =>
