@@ -1,4 +1,4 @@
-// Form Doldur uygulaması — sürüm 3.6.5
+// Form Doldur uygulaması — sürüm 3.6.6
 (() => {
   'use strict';
   if (!['http:', 'https:'].includes(location.protocol)) return;
@@ -87,7 +87,7 @@
   };
   const inspectFields = () => {
     document.getElementById('form-teknik-panel')?.remove();
-    const report = { version: '3.6.5', fields: [], saveButtons: [], choices: [], actions: [], tabs: [], editors: [], diagnosisStructure: [] };
+    const report = { version: '3.6.6', fields: [], saveButtons: [], choices: [], actions: [], tabs: [], editors: [], diagnosisStructure: [] };
     for (const { doc, path } of frameDocuments()) {
       const isVisible = element => element.getClientRects().length > 0 &&
         doc.defaultView.getComputedStyle(element).visibility !== 'hidden';
@@ -163,7 +163,7 @@
     panel.id = 'form-teknik-panel';
     panel.style.cssText = 'position:fixed;inset:10% 10%;z-index:2147483647;background:white;color:black;padding:20px;border:2px solid #333;box-shadow:0 4px 20px #0008;font:14px Arial;display:flex;flex-direction:column;gap:12px';
     const heading = document.createElement('strong');
-    heading.textContent = 'Alan tanıma raporu — 3.6.5';
+    heading.textContent = 'Alan tanıma raporu — 3.6.6';
     const note = document.createElement('div');
     note.textContent = 'Yalnızca hedef alanların teknik bilgileri. Alan değerleri ve hasta bilgileri rapora eklenmez. Rapor otomatik gönderilmez.';
     const output = document.createElement('textarea');
@@ -182,16 +182,6 @@
     panel.append(heading, note, output, select, close);
     document.body.appendChild(panel);
   };
-
-  const reportButton = document.createElement('button');
-  reportButton.id = 'poliklinik-rapor-dugmesi';
-  reportButton.type = 'button';
-  reportButton.textContent = 'T';
-  reportButton.title = 'Teknik raporu aç · 3.6.5';
-  reportButton.setAttribute('aria-label', 'Teknik raporu aç');
-  reportButton.style.cssText = 'position:fixed;right:6px;top:50%;transform:translateY(-50%);z-index:2147483647;width:24px;height:24px;padding:0;border:1px solid white;border-radius:5px;background:#285c8c;color:white;font:bold 12px Arial,sans-serif;cursor:pointer';
-  reportButton.addEventListener('click', inspectFields);
-  document.body.appendChild(reportButton);
 
   // Alt+1 / Alt+2: yalnızca raporda doğrulanmış alan adlarıyla çalış.
   let shortcutBusy = false;
@@ -404,7 +394,7 @@
       saves[0].click();
       // Kaydet sonucunu HBYS gösterir; ek bilgi penceresi açma.
     } catch (error) {
-      alert('[3.6.5] ' + (saveClicked ? 'Kaydet işleminin sonucunu ekrandan kontrol et. ' : shortcutName + ' durdu: ') +
+      alert('[3.6.6] ' + (saveClicked ? 'Kaydet işleminin sonucunu ekrandan kontrol et. ' : shortcutName + ' durdu: ') +
         error.message);
     } finally {
       activeFields = null;
@@ -547,25 +537,15 @@
     tabs[0].click();
   };
   let outpatientRunning = false;
-  const outpatientButton = document.createElement('button');
-  outpatientButton.id = 'poliklinik-islem-dugmesi';
-  outpatientButton.type = 'button';
-  outpatientButton.textContent = 'Poliklinik';
-  outpatientButton.title = 'Kabul → Z00.0 → Dr yönlendirildi → Kaydet';
-  outpatientButton.style.cssText = 'position:fixed;right:6px;top:calc(50% + 34px);z-index:2147483647;padding:5px 8px;border:1px solid white;border-radius:5px;background:#285c8c;color:white;font:12px Arial,sans-serif;cursor:pointer';
-  document.body.appendChild(outpatientButton);
-
   const runOutpatient = async () => {
     if (outpatientRunning || shortcutBusy) return;
     outpatientRunning = true;
     // Hasta kayıt kısayolları bu akışla aynı anda çalışmasın.
     shortcutBusy = true;
-    outpatientButton.disabled = true;
     let outpatientStage = 'Poliklinik ekranını bulma';
     const release = () => {
       outpatientRunning = false;
       shortcutBusy = false;
-      outpatientButton.disabled = false;
     };
     try {
       if (document.getElementById('form-teknik-panel')) throw new Error('Önce teknik raporu kapat.');
@@ -687,26 +667,19 @@
       }
       uniqueAction(root, 'kaydet').click();
     } catch (error) {
-      alert('[3.6.5] Poliklinik: ' + error.message);
+      alert('[3.6.6] Poliklinik: ' + error.message);
     } finally {
       release();
     }
   };
-  outpatientButton.addEventListener('click', () => { void runOutpatient(); });
-  const updateOutpatientButton = () => {
-    outpatientButton.hidden = !frameDocuments().some(({ doc }) =>
-      [...doc.querySelectorAll('.x-tab, [role="tab"]')].some(tab =>
-        shown(tab) && cleanLabel(tab.textContent || '') === 'doktor notları'));
-  };
-  updateOutpatientButton();
-  setInterval(updateOutpatientButton, 1500);
-
   const shortcutNumber = event => {
     if (!event.altKey || event.shiftKey || event.ctrlKey || event.metaKey) return 0;
     if (['Digit1', 'Numpad1'].includes(event.code) || event.key === '1' ||
         event.keyCode === 49 || event.keyCode === 97) return 1;
     if (['Digit2', 'Numpad2'].includes(event.code) || event.key === '2' ||
         event.keyCode === 50 || event.keyCode === 98) return 2;
+    if (['Digit4', 'Numpad4'].includes(event.code) || event.key === '4' ||
+        event.keyCode === 52 || event.keyCode === 100) return 4;
     return 0;
   };
   const pressedShortcuts = new Set();
@@ -733,7 +706,8 @@
           event.stopPropagation();
           if (event.repeat || pressedShortcuts.has(number)) return;
           pressedShortcuts.add(number);
-          void runShortcut(number === 2 ? 'Pansuman' : 'Enjeksiyon');
+          if (number === 4) void runOutpatient();
+          else void runShortcut(number === 2 ? 'Pansuman' : 'Enjeksiyon');
           return;
         }
         if (event.altKey && event.shiftKey && !event.ctrlKey && !event.metaKey &&
