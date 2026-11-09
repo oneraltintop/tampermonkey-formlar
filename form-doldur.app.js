@@ -1,4 +1,4 @@
-// Form Doldur uygulaması — sürüm 3.6.4
+// Form Doldur uygulaması — sürüm 3.6.5
 (() => {
   'use strict';
   if (!['http:', 'https:'].includes(location.protocol)) return;
@@ -87,7 +87,7 @@
   };
   const inspectFields = () => {
     document.getElementById('form-teknik-panel')?.remove();
-    const report = { version: '3.6.4', fields: [], saveButtons: [], choices: [], actions: [], tabs: [], editors: [], diagnosisStructure: [] };
+    const report = { version: '3.6.5', fields: [], saveButtons: [], choices: [], actions: [], tabs: [], editors: [], diagnosisStructure: [] };
     for (const { doc, path } of frameDocuments()) {
       const isVisible = element => element.getClientRects().length > 0 &&
         doc.defaultView.getComputedStyle(element).visibility !== 'hidden';
@@ -163,7 +163,7 @@
     panel.id = 'form-teknik-panel';
     panel.style.cssText = 'position:fixed;inset:10% 10%;z-index:2147483647;background:white;color:black;padding:20px;border:2px solid #333;box-shadow:0 4px 20px #0008;font:14px Arial;display:flex;flex-direction:column;gap:12px';
     const heading = document.createElement('strong');
-    heading.textContent = 'Alan tanıma raporu — 3.6.4';
+    heading.textContent = 'Alan tanıma raporu — 3.6.5';
     const note = document.createElement('div');
     note.textContent = 'Yalnızca hedef alanların teknik bilgileri. Alan değerleri ve hasta bilgileri rapora eklenmez. Rapor otomatik gönderilmez.';
     const output = document.createElement('textarea');
@@ -187,7 +187,7 @@
   reportButton.id = 'poliklinik-rapor-dugmesi';
   reportButton.type = 'button';
   reportButton.textContent = 'T';
-  reportButton.title = 'Teknik raporu aç · 3.6.4';
+  reportButton.title = 'Teknik raporu aç · 3.6.5';
   reportButton.setAttribute('aria-label', 'Teknik raporu aç');
   reportButton.style.cssText = 'position:fixed;right:6px;top:50%;transform:translateY(-50%);z-index:2147483647;width:24px;height:24px;padding:0;border:1px solid white;border-radius:5px;background:#285c8c;color:white;font:bold 12px Arial,sans-serif;cursor:pointer';
   reportButton.addEventListener('click', inspectFields);
@@ -404,7 +404,7 @@
       saves[0].click();
       // Kaydet sonucunu HBYS gösterir; ek bilgi penceresi açma.
     } catch (error) {
-      alert('[3.6.4] ' + (saveClicked ? 'Kaydet işleminin sonucunu ekrandan kontrol et. ' : shortcutName + ' durdu: ') +
+      alert('[3.6.5] ' + (saveClicked ? 'Kaydet işleminin sonucunu ekrandan kontrol et. ' : shortcutName + ' durdu: ') +
         error.message);
     } finally {
       activeFields = null;
@@ -551,7 +551,7 @@
   outpatientButton.id = 'poliklinik-islem-dugmesi';
   outpatientButton.type = 'button';
   outpatientButton.textContent = 'Poliklinik';
-  outpatientButton.title = 'Kabul → Z00.0 → Dr yönlendirildi → kayıt öncesi kontrol';
+  outpatientButton.title = 'Kabul → Z00.0 → Dr yönlendirildi → Kaydet';
   outpatientButton.style.cssText = 'position:fixed;right:6px;top:calc(50% + 34px);z-index:2147483647;padding:5px 8px;border:1px solid white;border-radius:5px;background:#285c8c;color:white;font:12px Arial,sans-serif;cursor:pointer';
   document.body.appendChild(outpatientButton);
 
@@ -561,7 +561,6 @@
     // Hasta kayıt kısayolları bu akışla aynı anda çalışmasın.
     shortcutBusy = true;
     outpatientButton.disabled = true;
-    let reviewOpen = false;
     let outpatientStage = 'Poliklinik ekranını bulma';
     const release = () => {
       outpatientRunning = false;
@@ -682,41 +681,15 @@
       }
       outpatientStage = 'Notun alana aktarılmasını doğrulama';
       await waitFor(() => note.value === next);
-      const panel = document.createElement('div');
-      panel.id = 'poliklinik-kayit-kontrol';
-      panel.style.cssText = 'position:fixed;right:12px;bottom:20px;z-index:2147483647;background:white;color:black;border:2px solid #285c8c;padding:14px;max-width:320px;font:14px Arial;box-shadow:0 2px 12px #0005;display:flex;flex-direction:column;gap:10px';
-      const summary = document.createElement('div');
-      summary.textContent = 'Z00.0 tanısı ve “Dr yönlendirildi” notu hazır. Seçili hasta için doğruluğunu ekrandan kontrol et. Henüz Kaydet’e basılmadı.';
-      const save = document.createElement('button');
-      save.type = 'button';
-      save.textContent = 'Kontrol ettim, kaydet';
-      const dismiss = document.createElement('button');
-      dismiss.type = 'button';
-      dismiss.textContent = 'Kaydetmeden kapat';
-      dismiss.onclick = () => { panel.remove(); release(); };
-      save.onclick = () => {
-        save.disabled = true;
-        try {
-          assertPatient();
-          if (!note.isConnected || note.value !== next || !diagnosisCells(root).length) {
-            throw new Error('Tanı veya not değişti. Kayıt yapılmadı.');
-          }
-          uniqueAction(root, 'kaydet').click();
-          panel.remove();
-          release();
-        } catch (error) {
-          panel.remove();
-          release();
-          alert('[3.6.4] Poliklinik: ' + error.message);
-        }
-      };
-      panel.append(summary, save, dismiss);
-      document.body.appendChild(panel);
-      reviewOpen = true;
+      assertPatient();
+      if (!note.isConnected || note.value !== next || !diagnosisCells(root).length) {
+        throw new Error('Tanı veya not değişti. Kayıt yapılmadı.');
+      }
+      uniqueAction(root, 'kaydet').click();
     } catch (error) {
-      alert('[3.6.4] Poliklinik: ' + error.message);
+      alert('[3.6.5] Poliklinik: ' + error.message);
     } finally {
-      if (!reviewOpen) release();
+      release();
     }
   };
   outpatientButton.addEventListener('click', () => { void runOutpatient(); });
