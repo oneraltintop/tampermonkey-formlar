@@ -1,4 +1,4 @@
-// Form Doldur uygulaması — sürüm 3.4.3
+// Form Doldur uygulaması — sürüm 3.4.4
 (() => {
   'use strict';
   if (!['http:', 'https:'].includes(location.protocol)) return;
@@ -77,7 +77,7 @@
   };
   const inspectFields = () => {
     document.getElementById('form-teknik-panel')?.remove();
-    const report = { version: '3.4.3', fields: [], saveButtons: [], choices: [] };
+    const report = { version: '3.4.4', fields: [], saveButtons: [], choices: [] };
     for (const { doc, path } of frameDocuments()) {
       const isVisible = element => element.getClientRects().length > 0 &&
         doc.defaultView.getComputedStyle(element).visibility !== 'hidden';
@@ -120,7 +120,7 @@
     panel.id = 'form-teknik-panel';
     panel.style.cssText = 'position:fixed;inset:10% 10%;z-index:2147483647;background:white;color:black;padding:20px;border:2px solid #333;box-shadow:0 4px 20px #0008;font:14px Arial;display:flex;flex-direction:column;gap:12px';
     const heading = document.createElement('strong');
-    heading.textContent = 'Alan tanıma raporu — 3.4.3';
+    heading.textContent = 'Alan tanıma raporu — 3.4.4';
     const note = document.createElement('div');
     note.textContent = 'Yalnızca hedef alanların teknik bilgileri. Alan değerleri ve hasta bilgileri rapora eklenmez. Rapor otomatik gönderilmez.';
     const output = document.createElement('textarea');
@@ -270,20 +270,31 @@
   };
 
 
+  const shortcutNumber = event => {
+    if (!event.altKey || event.shiftKey || event.ctrlKey || event.metaKey) return 0;
+    if (['Digit1', 'Numpad1'].includes(event.code) || event.key === '1' ||
+        event.keyCode === 49 || event.keyCode === 97) return 1;
+    if (['Digit2', 'Numpad2'].includes(event.code) || event.key === '2' ||
+        event.keyCode === 50 || event.keyCode === 98) return 2;
+    return 0;
+  };
   const watched = new WeakSet();
   const bindDiagnostics = () => {
     for (const { doc } of frameDocuments()) {
-      if (watched.has(doc)) continue;
-      watched.add(doc);
-      doc.addEventListener('keydown', event => {
-        if (event.altKey && !event.shiftKey && !event.ctrlKey && !event.metaKey &&
-            ['Digit1', 'Numpad1', 'Digit2', 'Numpad2'].includes(event.code)) {
+      const view = doc.defaultView;
+      if (!view || watched.has(view)) continue;
+      watched.add(view);
+      view.addEventListener('keydown', event => {
+        const number = shortcutNumber(event);
+        if (number) {
           event.preventDefault();
-          if (!event.repeat) void runShortcut(event.code.endsWith('2') ? 'Pansuman' : 'Enjeksiyon');
+          event.stopPropagation();
+          if (!event.repeat) void runShortcut(number === 2 ? 'Pansuman' : 'Enjeksiyon');
           return;
         }
         if (event.altKey && event.shiftKey && !event.ctrlKey && !event.metaKey &&
-            event.code === 'KeyT' && !event.repeat) {
+            (event.code === 'KeyT' || (event.key || '').toLowerCase() === 't') &&
+            !event.repeat) {
           event.preventDefault();
           inspectFields();
         }
