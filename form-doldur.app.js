@@ -1,4 +1,4 @@
-// Form Doldur uygulaması — sürüm 3.4.0
+// Form Doldur uygulaması — sürüm 3.4.1
 (() => {
   'use strict';
   if (!['http:', 'https:'].includes(location.protocol)) return;
@@ -77,7 +77,7 @@
   };
   const inspectFields = () => {
     document.getElementById('form-teknik-panel')?.remove();
-    const report = { version: '3.4.0', fields: [], saveButtons: [], choices: [] };
+    const report = { version: '3.4.1', fields: [], saveButtons: [], choices: [] };
     for (const { doc, path } of frameDocuments()) {
       const isVisible = element => element.getClientRects().length > 0 &&
         doc.defaultView.getComputedStyle(element).visibility !== 'hidden';
@@ -120,7 +120,7 @@
     panel.id = 'form-teknik-panel';
     panel.style.cssText = 'position:fixed;inset:10% 10%;z-index:2147483647;background:white;color:black;padding:20px;border:2px solid #333;box-shadow:0 4px 20px #0008;font:14px Arial;display:flex;flex-direction:column;gap:12px';
     const heading = document.createElement('strong');
-    heading.textContent = 'Alan tanıma raporu — 3.4.0';
+    heading.textContent = 'Alan tanıma raporu — 3.4.1';
     const note = document.createElement('div');
     note.textContent = 'Yalnızca hedef alanların teknik bilgileri. Alan değerleri ve hasta bilgileri rapora eklenmez. Rapor otomatik gönderilmez.';
     const output = document.createElement('textarea');
@@ -265,6 +265,26 @@
       shortcutBusy = false;
     }
   };
+
+
+  const trialButton = document.createElement('button');
+  trialButton.id = 'hasta-kayit-deneme';
+  trialButton.type = 'button';
+  trialButton.textContent = 'Alt+1 işlemini çalıştır';
+  trialButton.title = 'Araç → Yeşil → Enjeksiyon → Sevgi Sever → Kaydet';
+  trialButton.style.cssText = 'position:fixed;bottom:24px;left:24px;z-index:2147483647;background:#176b48;color:white;border:0;border-radius:8px;padding:12px 16px;font:14px Arial,sans-serif;cursor:pointer';
+  trialButton.addEventListener('click', async () => {
+    if (shortcutBusy) return;
+    trialButton.disabled = true;
+    trialButton.textContent = 'İşlem sürüyor…';
+    try {
+      await runShortcut();
+    } finally {
+      trialButton.disabled = false;
+      trialButton.textContent = 'Alt+1 işlemini çalıştır';
+    }
+  });
+  document.body.appendChild(trialButton);
 
   const watched = new WeakSet();
   const bindDiagnostics = () => {
