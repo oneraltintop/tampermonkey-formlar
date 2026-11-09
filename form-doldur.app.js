@@ -1,4 +1,4 @@
-// Form Doldur uygulaması — sürüm 3.3.0
+// Form Doldur uygulaması — sürüm 3.4.0
 (() => {
   'use strict';
   if (!['http:', 'https:'].includes(location.protocol)) return;
@@ -77,7 +77,7 @@
   };
   const inspectFields = () => {
     document.getElementById('form-teknik-panel')?.remove();
-    const report = { version: '3.3.0', fields: [], saveButtons: [], choices: [] };
+    const report = { version: '3.4.0', fields: [], saveButtons: [], choices: [] };
     for (const { doc, path } of frameDocuments()) {
       const isVisible = element => element.getClientRects().length > 0 &&
         doc.defaultView.getComputedStyle(element).visibility !== 'hidden';
@@ -120,7 +120,7 @@
     panel.id = 'form-teknik-panel';
     panel.style.cssText = 'position:fixed;inset:10% 10%;z-index:2147483647;background:white;color:black;padding:20px;border:2px solid #333;box-shadow:0 4px 20px #0008;font:14px Arial;display:flex;flex-direction:column;gap:12px';
     const heading = document.createElement('strong');
-    heading.textContent = 'Alan tanıma raporu — 3.3.0';
+    heading.textContent = 'Alan tanıma raporu — 3.4.0';
     const note = document.createElement('div');
     note.textContent = 'Yalnızca hedef alanların teknik bilgileri. Alan değerleri ve hasta bilgileri rapora eklenmez. Rapor otomatik gönderilmez.';
     const output = document.createElement('textarea');
@@ -139,12 +139,145 @@
     panel.append(heading, note, output, select, close);
     document.body.appendChild(panel);
   };
+
+  // Alt+1: yalnızca raporda doğrulanmış alan adlarıyla çalış.
+  let shortcutBusy = false;
+  const shortcutSteps = [
+    { name: 'acilGelisSekli', label: 'Acil Geliş Şekli', value: 'Araç' },
+    { name: 'triaj', label: 'Triaj Kodu', value: 'Yeşil' },
+    { name: 'birim', label: 'Birim', value: 'Enjeksiyon' },
+    { name: 'personel', label: 'Doktor', value: 'Sevgi Sever' }
+  ];
+  const shown = element => element.isConnected && element.getClientRects().length > 0 &&
+    element.ownerDocument.defaultView.getComputedStyle(element).visibility !== 'hidden';
+  const pause = ms => new Promise(resolve => setTimeout(resolve, ms));
+  const waitUntil = async (find, message) => {
+    const deadline = Date.now() + 8000;
+    while (Date.now() < deadline) {
+      const result = find();
+      if (result) return result;
+      await pause(100);
+    }
+    throw new Error(message);
+  };
+  const findField = (doc, step) => {
+    const matches = [...doc.querySelectorAll('input[name="' + step.name + '"]')]
+      .filter(shown);
+    if (matches.length !== 1 || matches[0].disabled) {
+      throw new Error(step.label + ' alanı tek ve kullanılabilir olarak bulunamadı.');
+    }
+    return matches[0];
+  };
+  const expectedValue = (doc, step) =>
+    normalize(findField(doc, step).value) === normalize(step.value);
+  const chooseValue = async (doc, step) => {
+    if (expectedValue(doc, step)) return;
+    const field = findField(doc, step);
+    const container = field.closest('.x-form-item, .x-field');
+    const triggers = [...(container?.querySelectorAll('.x-form-trigger') || [])]
+      .filter(element => shown(element) &&
+        !element.closest('[aria-disabled="true"], [disabled]'));
+    if (triggers.length !== 1) throw new Error(step.label + ' seçim düğmesi belirsiz.');
+    const popupSelector = '.x-boundlist, .x-combo-list, .x-window, [role="listbox"], [role="dialog"]';
+    const existing = new Set([...doc.querySelectorAll(popupSelector)].filter(shown));
+    field.focus();
+    triggers[0].click();
+
+    const option = await waitUntil(() => {
+      const roots = [...doc.querySelectorAll(popupSelector)]
+        .filter(root => shown(root) && !existing.has(root));
+      const candidates = new Set();
+      for (const root of roots) {
+        for (const item of root.querySelectorAll(
+          '.x-boundlist-item, .x-combo-list-item, [role="option"], .x-grid-cell-inner'
+        )) {
+          if (!shown(item) || normalize(item.textContent || '') !== normalize(step.value)) continue;
+          const row = item.closest('.x-grid-row');
+          const target = row || item;
+          if (target.closest('[aria-disabled="true"], .x-item-disabled')) continue;
+          candidates.add(target);
+        }
+      }
+      if (candidates.size > 1) throw new Error(step.label + ' için birden fazla eşleşme var.');
+      return candidates.size === 1 ? [...candidates][0] : null;
+    }, step.label + ' listesinde "' + step.value + '" bulunamadı. Kayıt yapılmadı.');
+
+    option.click();
+    if (option.matches('.x-grid-row') && option.isConnected && shown(option)) {
+      option.dispatchEvent(new doc.defaultView.MouseEvent('dblclick', {
+        bubbles: true, cancelable: true, view: doc.defaultView
+      }));
+    }
+    await waitUntil(() => expectedValue(doc, step),
+      step.label + ' seçimi doğrulanamadı. Kayıt yapılmadı.');
+  };
+  const runShortcut = async () => {
+    if (shortcutBusy) return;
+    shortcutBusy = true;
+    let saveClicked = false;
+    try {
+      if (document.getElementById('form-teknik-panel')) {
+        throw new Error('Önce alan tanıma raporunu kapat.');
+      }
+      const docs = frameDocuments().filter(({ doc }) =>
+        shortcutSteps.every(step =>
+          [...doc.querySelectorAll('input[name="' + step.name + '"]')].filter(shown).length === 1
+        ));
+      if (docs.length !== 1) throw new Error('Hasta kayıt alanlarının bulunduğu tek ekran belirlenemedi.');
+      const doc = docs[0].doc;
+      if ([...doc.querySelectorAll('.x-window, [role="dialog"], .ui-dialog')].some(shown)) {
+        throw new Error('Önce açık bildirim veya seçim pencerelerini kapat.');
+      }
+      const originals = shortcutSteps.map(step => findField(doc, step));
+      const sameForm = () => shortcutSteps.every((step, index) =>
+        findField(doc, step) === originals[index]);
+      for (const step of shortcutSteps) {
+        if (!sameForm()) throw new Error('Ekran değişti. Kayıt yapılmadı.');
+        await chooseValue(doc, step);
+      }
+      if (!sameForm() || !shortcutSteps.every(step => expectedValue(doc, step))) {
+        throw new Error('Dört seçim birlikte doğrulanamadı. Kayıt yapılmadı.');
+      }
+      let scope = originals[0].parentElement;
+      while (scope && !originals.every(field => scope.contains(field))) scope = scope.parentElement;
+      const saveCandidates = root => [...root.querySelectorAll('a[role="button"], button, .x-btn')]
+        .filter(button => shown(button) &&
+          /^(kaydet|kaydet \[f\d+\]|kaydet \(f\d+\))$/u.test(cleanLabel(button.textContent || '')) &&
+          !button.closest('[aria-disabled="true"], [disabled], .x-item-disabled'));
+      let saves = [];
+      while (scope) {
+        saves = saveCandidates(scope);
+        if (saves.length) break;
+        scope = scope.parentElement;
+      }
+      if (saves.length !== 1) throw new Error('Tek bir etkin Kaydet düğmesi bulunamadı. Kayıt yapılmadı.');
+      // Seçimleri yeniden kontrol et; yalnızca bir kez Kaydet'e bas.
+      if (!shortcutSteps.every(step => expectedValue(doc, step))) {
+        throw new Error('Seçimler değişti. Kayıt yapılmadı.');
+      }
+      saveClicked = true;
+      saves[0].click();
+      alert('Kaydet düğmesine bir kez basıldı. Kaydın sonucunu HBYS ekranından kontrol et.');
+    } catch (error) {
+      alert((saveClicked ? 'Kaydet işleminin sonucunu ekrandan kontrol et. ' : 'Alt+1 durdu: ') +
+        error.message);
+    } finally {
+      shortcutBusy = false;
+    }
+  };
+
   const watched = new WeakSet();
   const bindDiagnostics = () => {
     for (const { doc } of frameDocuments()) {
       if (watched.has(doc)) continue;
       watched.add(doc);
       doc.addEventListener('keydown', event => {
+        if (event.altKey && !event.shiftKey && !event.ctrlKey && !event.metaKey &&
+            (event.code === 'Digit1' || event.code === 'Numpad1')) {
+          event.preventDefault();
+          if (!event.repeat) void runShortcut();
+          return;
+        }
         if (event.altKey && event.shiftKey && !event.ctrlKey && !event.metaKey &&
             event.code === 'KeyT' && !event.repeat) {
           event.preventDefault();
