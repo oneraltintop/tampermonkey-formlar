@@ -1,4 +1,4 @@
-// Form Doldur uygulaması — sürüm 3.4.10
+// Form Doldur uygulaması — sürüm 3.4.11
 (() => {
   'use strict';
   if (!['http:', 'https:'].includes(location.protocol)) return;
@@ -77,7 +77,7 @@
   };
   const inspectFields = () => {
     document.getElementById('form-teknik-panel')?.remove();
-    const report = { version: '3.4.10', fields: [], saveButtons: [], choices: [] };
+    const report = { version: '3.4.11', fields: [], saveButtons: [], choices: [] };
     for (const { doc, path } of frameDocuments()) {
       const isVisible = element => element.getClientRects().length > 0 &&
         doc.defaultView.getComputedStyle(element).visibility !== 'hidden';
@@ -120,7 +120,7 @@
     panel.id = 'form-teknik-panel';
     panel.style.cssText = 'position:fixed;inset:10% 10%;z-index:2147483647;background:white;color:black;padding:20px;border:2px solid #333;box-shadow:0 4px 20px #0008;font:14px Arial;display:flex;flex-direction:column;gap:12px';
     const heading = document.createElement('strong');
-    heading.textContent = 'Alan tanıma raporu — 3.4.10';
+    heading.textContent = 'Alan tanıma raporu — 3.4.11';
     const note = document.createElement('div');
     note.textContent = 'Yalnızca hedef alanların teknik bilgileri. Alan değerleri ve hasta bilgileri rapora eklenmez. Rapor otomatik gönderilmez.';
     const output = document.createElement('textarea');
@@ -198,7 +198,9 @@
   const chooseValue = async (doc, step) => {
     if (expectedValue(doc, step)) return;
     const field = findField(doc, step);
-    const container = field.closest('.x-form-item, .x-field');
+    const componentId = field.id.endsWith('-inputEl') ? field.id.slice(0, -8) : '';
+    const container = (componentId && doc.getElementById(componentId)) ||
+      field.closest('.x-form-item, .x-field');
     const triggers = [...(container?.querySelectorAll('.x-form-trigger') || [])]
       .filter(element => shown(element) &&
         !element.closest('[aria-disabled="true"], [disabled]'));
@@ -214,9 +216,19 @@
     const existing = new Set([...doc.querySelectorAll(popupSelector)].filter(shown));
     if (![...existing].some(isExpectedList)) {
       field.focus();
-      triggers[0].click();
+      if (step.name === 'personel') {
+        for (const type of ['mousedown', 'mouseup', 'click']) {
+          triggers[0].dispatchEvent(new doc.defaultView.MouseEvent(type, {
+            bubbles: true, cancelable: true, view: doc.defaultView, button: 0,
+            buttons: type === 'mousedown' ? 1 : 0
+          }));
+        }
+      } else {
+        triggers[0].click();
+      }
     }
 
+    let searchStarted = false;
     const option = await waitUntil(() => {
       const roots = [...doc.querySelectorAll(popupSelector)]
         .filter(root => shown(root) && (!existing.has(root) || isExpectedList(root)));
@@ -233,9 +245,37 @@
           if (!candidates.has(target)) candidates.set(target, item);
         }
       }
+
+      if (step.name === 'personel' && !candidates.size && !searchStarted) {
+        const lists = roots.filter(isExpectedList);
+        if (lists.length === 1) {
+          const searches = new Set();
+          for (const label of lists[0].querySelectorAll('label, .x-form-item-label')) {
+            if (normalize(label.textContent || '').replace(/[:*]+$/g, '').trim() !== 'arama') continue;
+            const linked = label.getAttribute('for');
+            const input = linked ? doc.getElementById(linked) :
+              label.closest('.x-form-item')?.querySelector('input[type="text"]');
+            if (input && shown(input) && !input.disabled && !input.readOnly) searches.add(input);
+          }
+          if (searches.size === 1) {
+            searchStarted = true;
+            const input = [...searches][0];
+            input.focus();
+            const setValue = Object.getOwnPropertyDescriptor(
+              doc.defaultView.HTMLInputElement.prototype, 'value'
+            ).set;
+            setValue.call(input, step.value);
+            input.dispatchEvent(new doc.defaultView.Event('input', { bubbles: true }));
+            input.dispatchEvent(new doc.defaultView.Event('change', { bubbles: true }));
+            input.dispatchEvent(new doc.defaultView.KeyboardEvent('keyup', {
+              key: 'r', code: 'KeyR', keyCode: 82, which: 82, bubbles: true
+            }));
+          }
+        }
+      }
       if (candidates.size > 1) throw new Error(step.label + ' için birden fazla eşleşme var.');
       return candidates.size === 1 ? [...candidates.values()][0] : null;
-    }, step.label + ' listesinde "' + step.value + '" bulunamadı. Kayıt yapılmadı.');
+    }, step.label + ' listesi veya "' + step.value + '" satırı bulunamadı. Kayıt yapılmadı.');
 
     option.click();
     if (option.closest('.x-grid-row, .x-grid3-row, .x-grid-item, [role="row"]') &&
@@ -311,7 +351,7 @@
       saves[0].click();
       alert('Kaydet düğmesine bir kez basıldı. Kaydın sonucunu HBYS ekranından kontrol et.');
     } catch (error) {
-      alert('[3.4.10] ' + (saveClicked ? 'Kaydet işleminin sonucunu ekrandan kontrol et. ' : shortcutName + ' durdu: ') +
+      alert('[3.4.11] ' + (saveClicked ? 'Kaydet işleminin sonucunu ekrandan kontrol et. ' : shortcutName + ' durdu: ') +
         error.message);
     } finally {
       activeFields = null;
