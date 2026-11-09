@@ -1,4 +1,4 @@
-// Form Doldur uygulaması — sürüm 3.6.1
+// Form Doldur uygulaması — sürüm 3.6.2
 (() => {
   'use strict';
   if (!['http:', 'https:'].includes(location.protocol)) return;
@@ -79,7 +79,7 @@
   };
   const inspectFields = () => {
     document.getElementById('form-teknik-panel')?.remove();
-    const report = { version: '3.6.1', fields: [], saveButtons: [], choices: [], actions: [], tabs: [], editors: [] };
+    const report = { version: '3.6.2', fields: [], saveButtons: [], choices: [], actions: [], tabs: [], editors: [] };
     for (const { doc, path } of frameDocuments()) {
       const isVisible = element => element.getClientRects().length > 0 &&
         doc.defaultView.getComputedStyle(element).visibility !== 'hidden';
@@ -147,7 +147,7 @@
     panel.id = 'form-teknik-panel';
     panel.style.cssText = 'position:fixed;inset:10% 10%;z-index:2147483647;background:white;color:black;padding:20px;border:2px solid #333;box-shadow:0 4px 20px #0008;font:14px Arial;display:flex;flex-direction:column;gap:12px';
     const heading = document.createElement('strong');
-    heading.textContent = 'Alan tanıma raporu — 3.6.1';
+    heading.textContent = 'Alan tanıma raporu — 3.6.2';
     const note = document.createElement('div');
     note.textContent = 'Yalnızca hedef alanların teknik bilgileri. Alan değerleri ve hasta bilgileri rapora eklenmez. Rapor otomatik gönderilmez.';
     const output = document.createElement('textarea');
@@ -171,7 +171,7 @@
   reportButton.id = 'poliklinik-rapor-dugmesi';
   reportButton.type = 'button';
   reportButton.textContent = 'T';
-  reportButton.title = 'Teknik raporu aç · 3.6.1';
+  reportButton.title = 'Teknik raporu aç · 3.6.2';
   reportButton.setAttribute('aria-label', 'Teknik raporu aç');
   reportButton.style.cssText = 'position:fixed;right:6px;top:50%;transform:translateY(-50%);z-index:2147483647;width:24px;height:24px;padding:0;border:1px solid white;border-radius:5px;background:#285c8c;color:white;font:bold 12px Arial,sans-serif;cursor:pointer';
   reportButton.addEventListener('click', inspectFields);
@@ -388,7 +388,7 @@
       saves[0].click();
       // Kaydet sonucunu HBYS gösterir; ek bilgi penceresi açma.
     } catch (error) {
-      alert('[3.6.1] ' + (saveClicked ? 'Kaydet işleminin sonucunu ekrandan kontrol et. ' : shortcutName + ' durdu: ') +
+      alert('[3.6.2] ' + (saveClicked ? 'Kaydet işleminin sonucunu ekrandan kontrol et. ' : shortcutName + ' durdu: ') +
         error.message);
     } finally {
       activeFields = null;
@@ -488,13 +488,31 @@
     }
     return [...rows.values()];
   };
-  const diagnosisWindows = doc => [...doc.querySelectorAll('.x-window, [role="dialog"]')]
-    .filter(dialog => {
-      if (!shown(dialog)) return false;
-      const title = dialog.querySelector('.x-window-header-text, .x-title-text');
-      return normalize(title?.textContent || dialog.getAttribute('aria-label') || '') ===
-        'tanı ekleme listesi';
-    });
+  const diagnosisWindows = doc => {
+    const found = new Set();
+    const titleMatches = text => normalize(text || '').replace(/[:\s]+$/u, '') ===
+      'tanı ekleme listesi';
+    const add = panel => {
+      if (panel && shown(panel)) found.add(panel);
+    };
+    for (const panel of doc.querySelectorAll('.x-window, .x-panel, [role="dialog"]')) {
+      if (titleMatches(panel.getAttribute('aria-label'))) add(panel);
+      const ids = (panel.getAttribute('aria-labelledby') || '').split(/\s+/).filter(Boolean);
+      if (ids.length && titleMatches(ids.map(id => doc.getElementById(id)?.textContent || '').join(' '))) {
+        add(panel);
+      }
+    }
+    for (const title of doc.querySelectorAll(
+      '.x-window-header-text, .x-panel-header-text, .x-title-text, .x-header-text, ' +
+      '[class*="header-text"], [id$="-header_hd-textEl"]'
+    )) {
+      if (!shown(title) || !titleMatches(title.textContent)) continue;
+      add(title.closest('.x-window, .x-panel, [role="dialog"]'));
+    }
+    // Aynı pencerenin iç içe kökleri bulunursa en içteki başlıklı paneli kullan.
+    return [...found].filter(panel =>
+      ![...found].some(other => other !== panel && panel.contains(other)));
+  };
   const openOutpatientTab = (root, label) => {
     const tabs = outpatientTabs(root, label);
     if (tabs.length !== 1) throw new Error('"' + label + '" sekmesi tek olarak bulunamadı.');
@@ -661,14 +679,14 @@
         } catch (error) {
           panel.remove();
           release();
-          alert('[3.6.1] Poliklinik: ' + error.message);
+          alert('[3.6.2] Poliklinik: ' + error.message);
         }
       };
       panel.append(summary, save, dismiss);
       document.body.appendChild(panel);
       reviewOpen = true;
     } catch (error) {
-      alert('[3.6.1] Poliklinik: ' + error.message);
+      alert('[3.6.2] Poliklinik: ' + error.message);
     } finally {
       if (!reviewOpen) release();
     }
