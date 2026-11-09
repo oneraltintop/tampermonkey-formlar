@@ -1,4 +1,4 @@
-// Form Doldur uygulaması — sürüm 3.4.16
+// Form Doldur uygulaması — sürüm 3.4.17
 (() => {
   'use strict';
   if (!['http:', 'https:'].includes(location.protocol)) return;
@@ -77,7 +77,7 @@
   };
   const inspectFields = () => {
     document.getElementById('form-teknik-panel')?.remove();
-    const report = { version: '3.4.16', fields: [], saveButtons: [], choices: [] };
+    const report = { version: '3.4.17', fields: [], saveButtons: [], choices: [] };
     for (const { doc, path } of frameDocuments()) {
       const isVisible = element => element.getClientRects().length > 0 &&
         doc.defaultView.getComputedStyle(element).visibility !== 'hidden';
@@ -120,7 +120,7 @@
     panel.id = 'form-teknik-panel';
     panel.style.cssText = 'position:fixed;inset:10% 10%;z-index:2147483647;background:white;color:black;padding:20px;border:2px solid #333;box-shadow:0 4px 20px #0008;font:14px Arial;display:flex;flex-direction:column;gap:12px';
     const heading = document.createElement('strong');
-    heading.textContent = 'Alan tanıma raporu — 3.4.16';
+    heading.textContent = 'Alan tanıma raporu — 3.4.17';
     const note = document.createElement('div');
     note.textContent = 'Yalnızca hedef alanların teknik bilgileri. Alan değerleri ve hasta bilgileri rapora eklenmez. Rapor otomatik gönderilmez.';
     const output = document.createElement('textarea');
@@ -293,6 +293,7 @@
     const shortcutSteps = baseSteps.map(step => step.name === 'birim' ? { ...step, value: unit } : step);
     const shortcutName = unit === 'Pansuman' ? 'Alt+2' : 'Alt+1';
     shortcutBusy = true;
+    let saveClicked = false;
     try {
       if (document.getElementById('form-teknik-panel')) {
         throw new Error('Önce alan tanıma raporunu kapat.');
@@ -329,21 +330,29 @@
       if ([...doc.querySelectorAll('.x-message-box, [role="alertdialog"], [aria-modal="true"]')].some(shown)) {
         throw new Error('Açık onay penceresi var. Kayıt yapılmadı.');
       }
-      // Alanlardan çık ve boş sayfa arka planına tıklama olaylarını gönder.
-      // Herhangi bir düğmeyi veya koordinattaki bilinmeyen öğeyi tıklama.
-      doc.activeElement?.blur?.();
-      for (const type of ['mousedown', 'mouseup', 'click']) {
-        doc.body.dispatchEvent(new doc.defaultView.MouseEvent(type, {
-          bubbles: true, cancelable: true, view: doc.defaultView, button: 0,
-          buttons: type === 'mousedown' ? 1 : 0
-        }));
+      let scope = originals[0].parentElement;
+      while (scope && !originals.every(field => scope.contains(field))) scope = scope.parentElement;
+      const saveCandidates = root => [...root.querySelectorAll('a[role="button"], button, .x-btn')]
+        .filter(button => shown(button) &&
+          /^(kaydet|kaydet \[f\d+\]|kaydet \(f\d+\))$/u.test(cleanLabel(button.textContent || '')) &&
+          !button.closest('[aria-disabled="true"], [disabled], .x-item-disabled'));
+      let saves = [];
+      while (scope) {
+        saves = saveCandidates(scope);
+        if (saves.length) break;
+        scope = scope.parentElement;
       }
-      if (!sameForm() || !shortcutSteps.every(step => expectedValue(doc, step))) {
-        throw new Error('Alanlardan çıkınca seçimler değişti. Kaydetmeden önce kontrol et.');
+      if (saves.length !== 1) throw new Error('Tek bir etkin Kaydet düğmesi bulunamadı. Kayıt yapılmadı.');
+      // Seçimleri yeniden kontrol et; yalnızca bir kez Kaydet'e bas.
+      if (!shortcutSteps.every(step => expectedValue(doc, step))) {
+        throw new Error('Seçimler değişti. Kayıt yapılmadı.');
       }
-      // Kaydet işlemi kullanıcıya aittir.
+      saveClicked = true;
+      saves[0].click();
+      // Kaydet sonucunu HBYS gösterir; ek bilgi penceresi açma.
     } catch (error) {
-      alert('[3.4.16] ' + shortcutName + ' durdu: ' + error.message);
+      alert('[3.4.17] ' + (saveClicked ? 'Kaydet işleminin sonucunu ekrandan kontrol et. ' : shortcutName + ' durdu: ') +
+        error.message);
     } finally {
       activeFields = null;
       shortcutBusy = false;
