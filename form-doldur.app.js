@@ -1,4 +1,4 @@
-// Form Doldur uygulaması — sürüm 3.4.8
+// Form Doldur uygulaması — sürüm 3.4.9
 (() => {
   'use strict';
   if (!['http:', 'https:'].includes(location.protocol)) return;
@@ -77,7 +77,7 @@
   };
   const inspectFields = () => {
     document.getElementById('form-teknik-panel')?.remove();
-    const report = { version: '3.4.8', fields: [], saveButtons: [], choices: [] };
+    const report = { version: '3.4.9', fields: [], saveButtons: [], choices: [] };
     for (const { doc, path } of frameDocuments()) {
       const isVisible = element => element.getClientRects().length > 0 &&
         doc.defaultView.getComputedStyle(element).visibility !== 'hidden';
@@ -120,7 +120,7 @@
     panel.id = 'form-teknik-panel';
     panel.style.cssText = 'position:fixed;inset:10% 10%;z-index:2147483647;background:white;color:black;padding:20px;border:2px solid #333;box-shadow:0 4px 20px #0008;font:14px Arial;display:flex;flex-direction:column;gap:12px';
     const heading = document.createElement('strong');
-    heading.textContent = 'Alan tanıma raporu — 3.4.8';
+    heading.textContent = 'Alan tanıma raporu — 3.4.9';
     const note = document.createElement('div');
     note.textContent = 'Yalnızca hedef alanların teknik bilgileri. Alan değerleri ve hasta bilgileri rapora eklenmez. Rapor otomatik gönderilmez.';
     const output = document.createElement('textarea');
@@ -195,31 +195,42 @@
         !element.closest('[aria-disabled="true"], [disabled]'));
     if (triggers.length !== 1) throw new Error(step.label + ' seçim düğmesi belirsiz.');
     const popupSelector = '.x-boundlist, .x-combo-list, .x-window, [role="listbox"], [role="dialog"]';
+    const expectedListTitle = step.name === 'birim' ? 'birim listesi' :
+      step.name === 'personel' ? 'personel listesi' : '';
+    const isExpectedList = root => {
+      if (!expectedListTitle) return false;
+      const header = root.querySelector('.x-window-header-text, .x-title-text, .ui-dialog-title');
+      return normalize(header?.textContent || root.getAttribute('aria-label') || '') === expectedListTitle;
+    };
     const existing = new Set([...doc.querySelectorAll(popupSelector)].filter(shown));
-    field.focus();
-    triggers[0].click();
+    if (![...existing].some(isExpectedList)) {
+      field.focus();
+      triggers[0].click();
+    }
 
     const option = await waitUntil(() => {
       const roots = [...doc.querySelectorAll(popupSelector)]
-        .filter(root => shown(root) && !existing.has(root));
-      const candidates = new Set();
+        .filter(root => shown(root) && (!existing.has(root) || isExpectedList(root)));
+      const candidates = new Map();
       for (const root of roots) {
         for (const item of root.querySelectorAll(
-          '.x-boundlist-item, .x-combo-list-item, [role="option"], .x-grid-cell-inner'
+          '.x-boundlist-item, .x-combo-list-item, [role="option"], ' +
+          '.x-grid-cell-inner, .x-grid3-cell-inner, [role="gridcell"], td'
         )) {
           if (!shown(item) || !matchesChoice(item.textContent || '', step)) continue;
-          const row = item.closest('.x-grid-row');
+          const row = item.closest('.x-grid-row, .x-grid3-row, .x-grid-item, [role="row"]');
           const target = row || item;
           if (target.closest('[aria-disabled="true"], .x-item-disabled')) continue;
-          candidates.add(target);
+          if (!candidates.has(target)) candidates.set(target, item);
         }
       }
       if (candidates.size > 1) throw new Error(step.label + ' için birden fazla eşleşme var.');
-      return candidates.size === 1 ? [...candidates][0] : null;
+      return candidates.size === 1 ? [...candidates.values()][0] : null;
     }, step.label + ' listesinde "' + step.value + '" bulunamadı. Kayıt yapılmadı.');
 
     option.click();
-    if (option.matches('.x-grid-row') && option.isConnected && shown(option)) {
+    if (option.closest('.x-grid-row, .x-grid3-row, .x-grid-item, [role="row"]') &&
+        option.isConnected && shown(option)) {
       option.dispatchEvent(new doc.defaultView.MouseEvent('dblclick', {
         bubbles: true, cancelable: true, view: doc.defaultView
       }));
@@ -282,7 +293,7 @@
       saves[0].click();
       alert('Kaydet düğmesine bir kez basıldı. Kaydın sonucunu HBYS ekranından kontrol et.');
     } catch (error) {
-      alert((saveClicked ? 'Kaydet işleminin sonucunu ekrandan kontrol et. ' : shortcutName + ' durdu: ') +
+      alert('[3.4.9] ' + (saveClicked ? 'Kaydet işleminin sonucunu ekrandan kontrol et. ' : shortcutName + ' durdu: ') +
         error.message);
     } finally {
       shortcutBusy = false;
