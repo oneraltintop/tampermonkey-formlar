@@ -1,4 +1,4 @@
-// Form Doldur uygulaması — sürüm 3.6.8
+// Form Doldur uygulaması — sürüm 3.6.9
 (() => {
   'use strict';
   if (!['http:', 'https:'].includes(location.protocol)) return;
@@ -87,7 +87,7 @@
   };
   const inspectFields = () => {
     document.getElementById('form-teknik-panel')?.remove();
-    const report = { version: '3.6.8', fields: [], saveButtons: [], choices: [], actions: [], tabs: [], editors: [], diagnosisStructure: [] };
+    const report = { version: '3.6.9', fields: [], saveButtons: [], choices: [], actions: [], tabs: [], editors: [], diagnosisStructure: [] };
     for (const { doc, path } of frameDocuments()) {
       const isVisible = element => element.getClientRects().length > 0 &&
         doc.defaultView.getComputedStyle(element).visibility !== 'hidden';
@@ -163,7 +163,7 @@
     panel.id = 'form-teknik-panel';
     panel.style.cssText = 'position:fixed;inset:10% 10%;z-index:2147483647;background:white;color:black;padding:20px;border:2px solid #333;box-shadow:0 4px 20px #0008;font:14px Arial;display:flex;flex-direction:column;gap:12px';
     const heading = document.createElement('strong');
-    heading.textContent = 'Alan tanıma raporu — 3.6.8';
+    heading.textContent = 'Alan tanıma raporu — 3.6.9';
     const note = document.createElement('div');
     note.textContent = 'Yalnızca hedef alanların teknik bilgileri. Alan değerleri ve hasta bilgileri rapora eklenmez. Rapor otomatik gönderilmez.';
     const output = document.createElement('textarea');
@@ -332,9 +332,9 @@
   };
   const runShortcut = async (unit = 'Enjeksiyon') => {
     if (shortcutBusy) return;
-    if (!['Enjeksiyon', 'Pansuman'].includes(unit)) return;
+    if (!['Enjeksiyon', 'Pansuman', 'Acil Servis'].includes(unit)) return;
     const shortcutSteps = baseSteps.map(step => step.name === 'birim' ? { ...step, value: unit } : step);
-    const shortcutName = unit === 'Pansuman' ? 'Alt+2' : 'Alt+1';
+    const shortcutName = unit === 'Acil Servis' ? 'Alt+3' : unit === 'Pansuman' ? 'Alt+2' : 'Alt+1';
     shortcutBusy = true;
     let saveClicked = false;
     try {
@@ -394,7 +394,7 @@
       saves[0].click();
       // Kaydet sonucunu HBYS gösterir; ek bilgi penceresi açma.
     } catch (error) {
-      alert('[3.6.8] ' + (saveClicked ? 'Kaydet işleminin sonucunu ekrandan kontrol et. ' : shortcutName + ' durdu: ') +
+      alert('[3.6.9] ' + (saveClicked ? 'Kaydet işleminin sonucunu ekrandan kontrol et. ' : shortcutName + ' durdu: ') +
         error.message);
     } finally {
       activeFields = null;
@@ -696,7 +696,7 @@
       }
       uniqueAction(root, 'kaydet').click();
     } catch (error) {
-      alert('[3.6.8] Poliklinik: ' + error.message);
+      alert('[3.6.9] Poliklinik: ' + error.message);
     } finally {
       release();
     }
@@ -707,6 +707,8 @@
         event.keyCode === 49 || event.keyCode === 97) return 1;
     if (['Digit2', 'Numpad2'].includes(event.code) || event.key === '2' ||
         event.keyCode === 50 || event.keyCode === 98) return 2;
+    if (['Digit3', 'Numpad3'].includes(event.code) || event.key === '3' ||
+        event.keyCode === 51 || event.keyCode === 99) return 3;
     if (['Digit4', 'Numpad4'].includes(event.code) || event.key === '4' ||
         event.keyCode === 52 || event.keyCode === 100) return 4;
     return 0;
@@ -736,7 +738,7 @@
           if (event.repeat || pressedShortcuts.has(number)) return;
           pressedShortcuts.add(number);
           if (number === 4) void runOutpatient();
-          else void runShortcut(number === 2 ? 'Pansuman' : 'Enjeksiyon');
+          else void runShortcut(number === 3 ? 'Acil Servis' : number === 2 ? 'Pansuman' : 'Enjeksiyon');
           return;
         }
         if (event.altKey && event.shiftKey && !event.ctrlKey && !event.metaKey &&
