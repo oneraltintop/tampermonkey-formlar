@@ -1,4 +1,4 @@
-// Form Doldur uygulaması — sürüm 3.6.16
+// Form Doldur uygulaması — sürüm 3.6.17
 (() => {
   'use strict';
   if (!['http:', 'https:'].includes(location.protocol)) return;
@@ -122,7 +122,7 @@
 
   const inspectFields = () => {
     document.getElementById('form-teknik-panel')?.remove();
-    const report = { version: '3.6.16', fields: [], saveButtons: [], choices: [], actions: [], tabs: [], editors: [], diagnosisStructure: [], dischargeStructure: [] };
+    const report = { version: '3.6.17', fields: [], saveButtons: [], choices: [], actions: [], tabs: [], editors: [], diagnosisStructure: [], dischargeStructure: [] };
     for (const { doc, path } of frameDocuments()) {
       const isVisible = element => element.getClientRects().length > 0 &&
         doc.defaultView.getComputedStyle(element).visibility !== 'hidden';
@@ -212,7 +212,7 @@
     panel.id = 'form-teknik-panel';
     panel.style.cssText = 'position:fixed;inset:10% 10%;z-index:2147483647;background:white;color:black;padding:20px;border:2px solid #333;box-shadow:0 4px 20px #0008;font:14px Arial;display:flex;flex-direction:column;gap:12px';
     const heading = document.createElement('strong');
-    heading.textContent = 'Alan tanıma raporu — 3.6.16';
+    heading.textContent = 'Alan tanıma raporu — 3.6.17';
     const note = document.createElement('div');
     note.textContent = 'Yalnızca hedef alanların teknik bilgileri. Alan değerleri ve hasta bilgileri rapora eklenmez. Rapor otomatik gönderilmez.';
     const output = document.createElement('textarea');
@@ -410,8 +410,22 @@
     await waitUntil(() => expectedValue(doc, step),
       step.label + ' seçimi doğrulanamadı. Kayıt yapılmadı.');
   };
+  const dutyDoctorForRegistration = () => {
+    // Eski yükleyicide mevcut davranış korunur; yeni menü için yükleyici 3.4.1 gerekir.
+    const value = typeof formDoldurSettings === 'object' && formDoldurSettings &&
+      typeof formDoldurSettings.getDutyDoctor === 'function'
+      ? formDoldurSettings.getDutyDoctor() : 'Sevgi Sever';
+    if (typeof value !== 'string' || /[\r\n]/u.test(value)) {
+      throw new Error('Nöbetçi doktor adını menüden yeniden gir.');
+    }
+    const name = value.replace(/\s+/g, ' ').trim();
+    if (!name || name.length > 120) throw new Error('Geçerli bir nöbetçi doktor adı gir.');
+    return name;
+  };
   const registrationStepsForUnit = unit => {
-    const steps = baseSteps.map(step => step.name === 'birim' ? { ...step, value: unit } : step);
+    const doctor = dutyDoctorForRegistration();
+    const steps = baseSteps.map(step => step.name === 'birim' ? { ...step, value: unit } :
+      step.name === 'personel' ? { ...step, value: doctor } : step);
     if (unit !== 'Acil Servis') return steps;
     // Acil birimi/doktoru seçildikten sonra geliş şeklini yeniden seç.
     return ['birim', 'personel', 'acilGelisSekli', 'triaj']
@@ -420,7 +434,13 @@
   const runShortcut = async (unit = 'Enjeksiyon') => {
     if (shortcutBusy) return;
     if (!['Enjeksiyon', 'Pansuman', 'Acil Servis'].includes(unit)) return;
-    const shortcutSteps = registrationStepsForUnit(unit);
+    let shortcutSteps;
+    try {
+      shortcutSteps = registrationStepsForUnit(unit);
+    } catch (error) {
+      alert('Nöbetçi doktor ayarı: ' + error.message);
+      return;
+    }
     const shortcutName = unit === 'Acil Servis' ? 'Alt+3' : unit === 'Pansuman' ? 'Alt+2' : 'Alt+1';
     shortcutBusy = true;
     let saveClicked = false;
@@ -481,7 +501,7 @@
       saves[0].click();
       // Kaydet sonucunu HBYS gösterir; ek bilgi penceresi açma.
     } catch (error) {
-      alert('[3.6.16] ' + (saveClicked ? 'Kaydet işleminin sonucunu ekrandan kontrol et. ' : shortcutName + ' durdu: ') +
+      alert('[3.6.17] ' + (saveClicked ? 'Kaydet işleminin sonucunu ekrandan kontrol et. ' : shortcutName + ' durdu: ') +
         error.message);
     } finally {
       activeFields = null;
@@ -820,7 +840,7 @@
       }
       uniqueAction(root, 'kaydet').click();
     } catch (error) {
-      alert('[3.6.16] Poliklinik: ' + error.message);
+      alert('[3.6.17] Poliklinik: ' + error.message);
     } finally {
       release();
     }
