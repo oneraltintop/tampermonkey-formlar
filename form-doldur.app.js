@@ -1,4 +1,4 @@
-// Form Doldur uygulaması — sürüm 3.6.29
+// Form Doldur uygulaması — sürüm 3.6.30
 (() => {
   'use strict';
   if (!['http:', 'https:'].includes(location.protocol)) return;
@@ -50,7 +50,10 @@
     ['makro-kodu', /^makro\s*kodu$/u],
     ['tedavi', /^tedavi$/u],
     ['cikis-sekli', /^çıkış şekli$/u],
-    ['cikis-tarihi', /^çıkış tarihi?$/u]
+    ['cikis-tarihi', /^çıkış tarihi?$/u],
+    ['sarf-depo', /^depo( adı)?$/u],
+    ['sarf-malzeme', /^(malzeme|ilaç)( adı| kodu)?$/u],
+    ['sarf-miktar', /^miktar$/u]
   ];
   const cleanLabel = text => normalize(text).replace(/[:*]+$/g, '').trim();
   const technical = text => (text || '').slice(0, 160)
@@ -124,7 +127,7 @@
 
   const inspectFields = () => {
     document.getElementById('form-teknik-panel')?.remove();
-    const report = { version: '3.6.29', fields: [], saveButtons: [], choices: [], actions: [], tabs: [], editors: [], diagnosisStructure: [], dischargeStructure: [] };
+    const report = { version: '3.6.30', fields: [], saveButtons: [], choices: [], actions: [], tabs: [], editors: [], diagnosisStructure: [], dischargeStructure: [], supplyStructure: [], supplyChoices: [] };
     for (const { doc, path } of frameDocuments()) {
       const isVisible = element => element.getClientRects().length > 0 &&
         doc.defaultView.getComputedStyle(element).visibility !== 'hidden';
@@ -133,6 +136,7 @@
         if (!element || recorded.has(element) || !isVisible(element)) return;
         recorded.add(element);
         report.fields.push({ frame: path, label, ...describe(element) });
+        if (label.startsWith('sarf-')) report.supplyStructure.push({ frame: path, target: label, ancestors: technicalAncestors(element) });
         if (label.startsWith('cikis-')) report.dischargeStructure.push({ frame: path, target: label, ancestors: technicalAncestors(element) });
       };
       for (const label of doc.querySelectorAll('label, .x-form-item-label, .x-form-cb-label')) {
@@ -160,7 +164,7 @@
       for (const action of doc.querySelectorAll('button, a[role="button"], .x-btn')) {
         if (!isVisible(action)) continue;
         const label = cleanLabel(action.textContent || action.getAttribute('aria-label') || '');
-        if (/^(kabul|hasta kabul|ekle|tanı ekle|tamam|kaydet)(\s*[[(]f\d+[)\]])?$/u.test(label)) {
+        if (/^(kabul|hasta kabul|ekle|tanı ekle|tamam|kaydet|ilaç ekle|sarf ekle|malzeme ekle|toplu ekle|ekle ve kapat)(\s*[[(]f\d+[)\]])?$/u.test(label)) {
           report.actions.push({ frame: path, label, ...describe(action) });
           if (label.startsWith('tamam')) {
             report.diagnosisStructure.push({
@@ -172,7 +176,7 @@
       for (const tab of doc.querySelectorAll('[role="tab"], .x-tab')) {
         if (!isVisible(tab)) continue;
         const label = cleanLabel(tab.textContent || '');
-        if (['doktor notları', 'muayene bilgileri', 'tanılar', 'sık kullanılan tanılar', 'çıkış bilgileri', 'hizmet listesi'].includes(label)) {
+        if (['doktor notları', 'muayene bilgileri', 'tanılar', 'sık kullanılan tanılar', 'çıkış bilgileri', 'hizmet listesi', 'ilaç sarf', 'ilaç/sarf'].includes(label)) {
           report.tabs.push({ frame: path, label, ...describe(tab) });
         }
       }
@@ -186,6 +190,18 @@
             frame: path, target: 'bugün', ancestors: technicalAncestors(today)
           });
         }
+      }
+      // Sadece istenen ürün türlerinin katalog etiketleri; hasta satırı veya alan değeri alınmaz.
+      for (const cell of doc.querySelectorAll(
+        '.x-grid-cell-inner, .x-grid3-cell-inner, [role="gridcell"], .x-boundlist-item, [role="option"]'
+      )) {
+        const text = (cell.textContent || '').replace(/\s+/g, ' ').trim();
+        if (!isVisible(cell) || text.length > 240) continue;
+        if (!/(muayene eldiven|branül|kanül|enjektör|serum set)/u.test(normalize(text))) continue;
+        report.supplyChoices.push({
+          frame: path, productLabel: text, ...describe(cell),
+          ancestors: technicalAncestors(cell)
+        });
       }
       // Yalnızca editör öğelerinin yapısı; yazılı notlar veya HTML içeriği alınmaz.
       for (const editor of doc.querySelectorAll('textarea, [contenteditable="true"]')) {
@@ -214,7 +230,7 @@
     panel.id = 'form-teknik-panel';
     panel.style.cssText = 'position:fixed;inset:10% 10%;z-index:2147483647;background:white;color:black;padding:20px;border:2px solid #333;box-shadow:0 4px 20px #0008;font:14px Arial;display:flex;flex-direction:column;gap:12px';
     const heading = document.createElement('strong');
-    heading.textContent = 'Alan tanıma raporu — 3.6.29';
+    heading.textContent = 'Alan tanıma raporu — 3.6.30';
     const note = document.createElement('div');
     note.textContent = 'Yalnızca hedef alanların teknik bilgileri. Alan değerleri ve hasta bilgileri rapora eklenmez. Rapor otomatik gönderilmez.';
     const output = document.createElement('textarea');
@@ -514,7 +530,7 @@
       saves[0].click();
       // Kaydet sonucunu HBYS gösterir; ek bilgi penceresi açma.
     } catch (error) {
-      alert('[3.6.29] ' + (saveClicked ? 'Kaydet işleminin sonucunu ekrandan kontrol et. ' : shortcutName + ' durdu: ') +
+      alert('[3.6.30] ' + (saveClicked ? 'Kaydet işleminin sonucunu ekrandan kontrol et. ' : shortcutName + ' durdu: ') +
         error.message);
     } finally {
       activeFields = null;
@@ -853,7 +869,7 @@
       }
       uniqueAction(root, 'kaydet').click();
     } catch (error) {
-      alert('[3.6.29] Poliklinik: ' + error.message);
+      alert('[3.6.30] Poliklinik: ' + error.message);
     } finally {
       release();
     }
@@ -1080,7 +1096,7 @@
       }
       return true;
     } catch (error) {
-      alert('[3.6.29] Makro: ' + error.message +
+      alert('[3.6.30] Makro: ' + error.message +
         (sent ? ' Kod otomatik yeniden gönderilmedi.' : ' Kod gönderilmedi.'));
       return false;
     } finally {
@@ -1177,7 +1193,7 @@
         completed++;
       }
     } catch (error) {
-      alert('[3.6.29] Makro: ' + error.message);
+      alert('[3.6.30] Makro: ' + error.message);
     } finally {
       shortcutBusy = false;
       macroBatchActive = false;
@@ -1250,7 +1266,7 @@
       macroMenu = panel;
       document.body.appendChild(panel);
     } catch (error) {
-      alert('[3.6.29] Makro: ' + error.message);
+      alert('[3.6.30] Makro: ' + error.message);
     } finally {
       macroMenuOpening = false;
     }
