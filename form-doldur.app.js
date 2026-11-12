@@ -1,4 +1,4 @@
-// Form Doldur uygulaması — sürüm 3.6.15
+// Form Doldur uygulaması — sürüm 3.6.16
 (() => {
   'use strict';
   if (!['http:', 'https:'].includes(location.protocol)) return;
@@ -122,7 +122,7 @@
 
   const inspectFields = () => {
     document.getElementById('form-teknik-panel')?.remove();
-    const report = { version: '3.6.15', fields: [], saveButtons: [], choices: [], actions: [], tabs: [], editors: [], diagnosisStructure: [], dischargeStructure: [] };
+    const report = { version: '3.6.16', fields: [], saveButtons: [], choices: [], actions: [], tabs: [], editors: [], diagnosisStructure: [], dischargeStructure: [] };
     for (const { doc, path } of frameDocuments()) {
       const isVisible = element => element.getClientRects().length > 0 &&
         doc.defaultView.getComputedStyle(element).visibility !== 'hidden';
@@ -212,7 +212,7 @@
     panel.id = 'form-teknik-panel';
     panel.style.cssText = 'position:fixed;inset:10% 10%;z-index:2147483647;background:white;color:black;padding:20px;border:2px solid #333;box-shadow:0 4px 20px #0008;font:14px Arial;display:flex;flex-direction:column;gap:12px';
     const heading = document.createElement('strong');
-    heading.textContent = 'Alan tanıma raporu — 3.6.15';
+    heading.textContent = 'Alan tanıma raporu — 3.6.16';
     const note = document.createElement('div');
     note.textContent = 'Yalnızca hedef alanların teknik bilgileri. Alan değerleri ve hasta bilgileri rapora eklenmez. Rapor otomatik gönderilmez.';
     const output = document.createElement('textarea');
@@ -318,8 +318,8 @@
   };
   const expectedValue = (doc, step) =>
     matchesChoice(findField(doc, step).value, step);
-  const chooseValue = async (doc, step) => {
-    if (expectedValue(doc, step)) return;
+  const chooseValue = async (doc, step, force = false) => {
+    if (!force && expectedValue(doc, step)) return;
     const field = findField(doc, step);
     const componentId = field.id.endsWith('-inputEl') ? field.id.slice(0, -8) : '';
     const container = (componentId && doc.getElementById(componentId)) ||
@@ -410,10 +410,17 @@
     await waitUntil(() => expectedValue(doc, step),
       step.label + ' seçimi doğrulanamadı. Kayıt yapılmadı.');
   };
+  const registrationStepsForUnit = unit => {
+    const steps = baseSteps.map(step => step.name === 'birim' ? { ...step, value: unit } : step);
+    if (unit !== 'Acil Servis') return steps;
+    // Acil birimi/doktoru seçildikten sonra geliş şeklini yeniden seç.
+    return ['birim', 'personel', 'acilGelisSekli', 'triaj']
+      .map(name => steps.find(step => step.name === name));
+  };
   const runShortcut = async (unit = 'Enjeksiyon') => {
     if (shortcutBusy) return;
     if (!['Enjeksiyon', 'Pansuman', 'Acil Servis'].includes(unit)) return;
-    const shortcutSteps = baseSteps.map(step => step.name === 'birim' ? { ...step, value: unit } : step);
+    const shortcutSteps = registrationStepsForUnit(unit);
     const shortcutName = unit === 'Acil Servis' ? 'Alt+3' : unit === 'Pansuman' ? 'Alt+2' : 'Alt+1';
     shortcutBusy = true;
     let saveClicked = false;
@@ -443,7 +450,7 @@
         field.getAttribute('name') === shortcutSteps[index].name);
       for (const step of shortcutSteps) {
         if (!sameForm()) throw new Error('Ekran değişti. Kayıt yapılmadı.');
-        await chooseValue(doc, step);
+        await chooseValue(doc, step, unit === 'Acil Servis' && step.name === 'acilGelisSekli');
       }
       if (!sameForm() || !shortcutSteps.every(step => expectedValue(doc, step))) {
         throw new Error('Dört seçim birlikte doğrulanamadı. Kayıt yapılmadı.');
@@ -474,7 +481,7 @@
       saves[0].click();
       // Kaydet sonucunu HBYS gösterir; ek bilgi penceresi açma.
     } catch (error) {
-      alert('[3.6.15] ' + (saveClicked ? 'Kaydet işleminin sonucunu ekrandan kontrol et. ' : shortcutName + ' durdu: ') +
+      alert('[3.6.16] ' + (saveClicked ? 'Kaydet işleminin sonucunu ekrandan kontrol et. ' : shortcutName + ' durdu: ') +
         error.message);
     } finally {
       activeFields = null;
@@ -813,7 +820,7 @@
       }
       uniqueAction(root, 'kaydet').click();
     } catch (error) {
-      alert('[3.6.15] Poliklinik: ' + error.message);
+      alert('[3.6.16] Poliklinik: ' + error.message);
     } finally {
       release();
     }
