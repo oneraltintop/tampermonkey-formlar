@@ -1,4 +1,4 @@
-// Form Doldur uygulaması — sürüm 3.6.26
+// Form Doldur uygulaması — sürüm 3.6.27
 (() => {
   'use strict';
   if (!['http:', 'https:'].includes(location.protocol)) return;
@@ -124,7 +124,7 @@
 
   const inspectFields = () => {
     document.getElementById('form-teknik-panel')?.remove();
-    const report = { version: '3.6.26', fields: [], saveButtons: [], choices: [], actions: [], tabs: [], editors: [], diagnosisStructure: [], dischargeStructure: [] };
+    const report = { version: '3.6.27', fields: [], saveButtons: [], choices: [], actions: [], tabs: [], editors: [], diagnosisStructure: [], dischargeStructure: [] };
     for (const { doc, path } of frameDocuments()) {
       const isVisible = element => element.getClientRects().length > 0 &&
         doc.defaultView.getComputedStyle(element).visibility !== 'hidden';
@@ -172,7 +172,7 @@
       for (const tab of doc.querySelectorAll('[role="tab"], .x-tab')) {
         if (!isVisible(tab)) continue;
         const label = cleanLabel(tab.textContent || '');
-        if (['doktor notları', 'muayene bilgileri', 'tanılar', 'sık kullanılan tanılar', 'çıkış bilgileri'].includes(label)) {
+        if (['doktor notları', 'muayene bilgileri', 'tanılar', 'sık kullanılan tanılar', 'çıkış bilgileri', 'hizmet listesi'].includes(label)) {
           report.tabs.push({ frame: path, label, ...describe(tab) });
         }
       }
@@ -214,7 +214,7 @@
     panel.id = 'form-teknik-panel';
     panel.style.cssText = 'position:fixed;inset:10% 10%;z-index:2147483647;background:white;color:black;padding:20px;border:2px solid #333;box-shadow:0 4px 20px #0008;font:14px Arial;display:flex;flex-direction:column;gap:12px';
     const heading = document.createElement('strong');
-    heading.textContent = 'Alan tanıma raporu — 3.6.26';
+    heading.textContent = 'Alan tanıma raporu — 3.6.27';
     const note = document.createElement('div');
     note.textContent = 'Yalnızca hedef alanların teknik bilgileri. Alan değerleri ve hasta bilgileri rapora eklenmez. Rapor otomatik gönderilmez.';
     const output = document.createElement('textarea');
@@ -514,7 +514,7 @@
       saves[0].click();
       // Kaydet sonucunu HBYS gösterir; ek bilgi penceresi açma.
     } catch (error) {
-      alert('[3.6.26] ' + (saveClicked ? 'Kaydet işleminin sonucunu ekrandan kontrol et. ' : shortcutName + ' durdu: ') +
+      alert('[3.6.27] ' + (saveClicked ? 'Kaydet işleminin sonucunu ekrandan kontrol et. ' : shortcutName + ' durdu: ') +
         error.message);
     } finally {
       activeFields = null;
@@ -853,7 +853,7 @@
       }
       uniqueAction(root, 'kaydet').click();
     } catch (error) {
-      alert('[3.6.26] Poliklinik: ' + error.message);
+      alert('[3.6.27] Poliklinik: ' + error.message);
     } finally {
       release();
     }
@@ -906,6 +906,33 @@
       ['adısoyadı', 'adsoyad', 'adsoyadı', 'adıvesoyadı'].includes(header));
     return hasName && headers.includes('sevktarihi');
   });
+  const ensureMacroServiceList = async expected => {
+    const candidates = [];
+    for (const { doc } of frameDocuments()) {
+      if (expected && doc !== expected.doc) continue;
+      if (doc.querySelectorAll('input[name="pol.triaj"]').length !== 1 ||
+          outpatientTabs(doc, 'doktor notları').length !== 1) continue;
+      const tabs = outpatientTabs(doc, 'hizmet listesi');
+      if (tabs.length === 1) candidates.push({ doc, tab: tabs[0] });
+    }
+    if (candidates.length !== 1) throw new Error('Poliklinikte tek bir Hizmet Listesi sekmesi bulunamadı.');
+    const { doc, tab } = candidates[0];
+    const selected = macroPatientRows(doc);
+    if (selected.length !== 1) throw new Error('Soldaki hasta listesinden tek hasta seç.');
+    const snapshot = selected[0].textContent;
+    if (expected && snapshot !== expected.patientSnapshot) {
+      throw new Error('Hasta veya başvuru değişti. Hizmet Listesi işlemi durduruldu.');
+    }
+    tab.click();
+    await waitUntil(() => {
+      const patients = macroPatientRows(doc);
+      if (!patients.length) return false;
+      if (patients.length !== 1 || patients[0].textContent !== snapshot) {
+        throw new Error('Hizmet Listesi açılırken hasta veya başvuru değişti.');
+      }
+      return macroCodeFields(doc, doc).length === 1;
+    }, 'Hizmet Listesi açılmadı veya Makro Kodu alanı hazır olmadı.');
+  };
   const macroContext = () => {
     const contexts = [];
     for (const { doc } of frameDocuments()) {
@@ -1053,7 +1080,7 @@
       }
       return true;
     } catch (error) {
-      alert('[3.6.26] Makro: ' + error.message +
+      alert('[3.6.27] Makro: ' + error.message +
         (sent ? ' Kod otomatik yeniden gönderilmedi.' : ' Kod gönderilmedi.'));
       return false;
     } finally {
@@ -1120,6 +1147,7 @@
       for (const item of selected) {
         if (macroBatchCancel) break;
         text.textContent = (completed + 1) + '/' + selected.length + ' · ' + item.label;
+        await ensureMacroServiceList(original);
         const context = await waitMacroReady(original);
         assertMacroContext(context);
         if (macroBatchCancel) break;
@@ -1128,7 +1156,7 @@
         completed++;
       }
     } catch (error) {
-      alert('[3.6.26] Makro: ' + error.message);
+      alert('[3.6.27] Makro: ' + error.message);
     } finally {
       shortcutBusy = false;
       macroBatchActive = false;
@@ -1138,11 +1166,14 @@
       setTimeout(() => progress.remove(), 5000);
     }
   };
-  const toggleMacroMenu = () => {
+  let macroMenuOpening = false;
+  const toggleMacroMenu = async () => {
     if (macroMenu) { closeMacroMenu(); return; }
-    if (shortcutBusy || outpatientRunning) return;
+    if (shortcutBusy || outpatientRunning || macroMenuOpening) return;
+    macroMenuOpening = true;
     try {
       if (document.getElementById('form-teknik-panel')) throw new Error('Önce teknik raporu kapat.');
+      await ensureMacroServiceList();
       const context = macroContext();
       assertMacroContext(context);
       const panel = document.createElement('div');
@@ -1186,7 +1217,9 @@
       macroMenu = panel;
       document.body.appendChild(panel);
     } catch (error) {
-      alert('[3.6.26] Makro: ' + error.message);
+      alert('[3.6.27] Makro: ' + error.message);
+    } finally {
+      macroMenuOpening = false;
     }
   };
   const isMacroKey = event => event.altKey && !event.ctrlKey && !event.shiftKey && !event.metaKey &&
