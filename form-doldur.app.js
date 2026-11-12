@@ -1,4 +1,4 @@
-// Form Doldur uygulaması — sürüm 3.6.14
+// Form Doldur uygulaması — sürüm 3.6.15
 (() => {
   'use strict';
   if (!['http:', 'https:'].includes(location.protocol)) return;
@@ -122,7 +122,7 @@
 
   const inspectFields = () => {
     document.getElementById('form-teknik-panel')?.remove();
-    const report = { version: '3.6.14', fields: [], saveButtons: [], choices: [], actions: [], tabs: [], editors: [], diagnosisStructure: [], dischargeStructure: [] };
+    const report = { version: '3.6.15', fields: [], saveButtons: [], choices: [], actions: [], tabs: [], editors: [], diagnosisStructure: [], dischargeStructure: [] };
     for (const { doc, path } of frameDocuments()) {
       const isVisible = element => element.getClientRects().length > 0 &&
         doc.defaultView.getComputedStyle(element).visibility !== 'hidden';
@@ -212,7 +212,7 @@
     panel.id = 'form-teknik-panel';
     panel.style.cssText = 'position:fixed;inset:10% 10%;z-index:2147483647;background:white;color:black;padding:20px;border:2px solid #333;box-shadow:0 4px 20px #0008;font:14px Arial;display:flex;flex-direction:column;gap:12px';
     const heading = document.createElement('strong');
-    heading.textContent = 'Alan tanıma raporu — 3.6.14';
+    heading.textContent = 'Alan tanıma raporu — 3.6.15';
     const note = document.createElement('div');
     note.textContent = 'Yalnızca hedef alanların teknik bilgileri. Alan değerleri ve hasta bilgileri rapora eklenmez. Rapor otomatik gönderilmez.';
     const output = document.createElement('textarea');
@@ -224,11 +224,42 @@
     select.type = 'button';
     select.textContent = 'Raporu seç (Ctrl+C ile kopyala)';
     select.onclick = () => { output.focus(); output.select(); };
+    const copy = document.createElement('button');
+    copy.type = 'button';
+    copy.textContent = 'Raporu kopyala';
+    copy.onclick = async () => {
+      const label = 'Kopyalandı · ' + report.version;
+      try {
+        if (!navigator.clipboard?.writeText) throw new Error('Clipboard API yok');
+        await navigator.clipboard.writeText(output.value);
+        copy.textContent = label;
+      } catch (_) {
+        output.focus();
+        output.select();
+        let copied = false;
+        try { copied = document.execCommand('copy'); } catch (_) {}
+        copy.textContent = copied ? label : 'Kopyalanamadı — Raporu indir düğmesini kullan';
+      }
+    };
+    const download = document.createElement('button');
+    download.type = 'button';
+    download.textContent = 'Raporu indir (.json)';
+    download.onclick = () => {
+      const blob = new Blob([output.value], { type: 'application/json;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = 'hbys-teknik-rapor-' + report.version + '.json';
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 30000);
+    };
     const close = document.createElement('button');
     close.type = 'button';
     close.textContent = 'Kapat';
     close.onclick = () => panel.remove();
-    panel.append(heading, note, output, select, close);
+    panel.append(heading, note, output, copy, download, select, close);
     document.body.appendChild(panel);
   };
 
@@ -443,7 +474,7 @@
       saves[0].click();
       // Kaydet sonucunu HBYS gösterir; ek bilgi penceresi açma.
     } catch (error) {
-      alert('[3.6.14] ' + (saveClicked ? 'Kaydet işleminin sonucunu ekrandan kontrol et. ' : shortcutName + ' durdu: ') +
+      alert('[3.6.15] ' + (saveClicked ? 'Kaydet işleminin sonucunu ekrandan kontrol et. ' : shortcutName + ' durdu: ') +
         error.message);
     } finally {
       activeFields = null;
@@ -782,7 +813,7 @@
       }
       uniqueAction(root, 'kaydet').click();
     } catch (error) {
-      alert('[3.6.14] Poliklinik: ' + error.message);
+      alert('[3.6.15] Poliklinik: ' + error.message);
     } finally {
       release();
     }
