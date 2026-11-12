@@ -1,4 +1,4 @@
-// Form Doldur uygulaması — sürüm 3.6.10
+// Form Doldur uygulaması — sürüm 3.6.11
 (() => {
   'use strict';
   if (!['http:', 'https:'].includes(location.protocol)) return;
@@ -87,7 +87,7 @@
   };
   const inspectFields = () => {
     document.getElementById('form-teknik-panel')?.remove();
-    const report = { version: '3.6.10', fields: [], saveButtons: [], choices: [], actions: [], tabs: [], editors: [], diagnosisStructure: [] };
+    const report = { version: '3.6.11', fields: [], saveButtons: [], choices: [], actions: [], tabs: [], editors: [], diagnosisStructure: [] };
     for (const { doc, path } of frameDocuments()) {
       const isVisible = element => element.getClientRects().length > 0 &&
         doc.defaultView.getComputedStyle(element).visibility !== 'hidden';
@@ -163,7 +163,7 @@
     panel.id = 'form-teknik-panel';
     panel.style.cssText = 'position:fixed;inset:10% 10%;z-index:2147483647;background:white;color:black;padding:20px;border:2px solid #333;box-shadow:0 4px 20px #0008;font:14px Arial;display:flex;flex-direction:column;gap:12px';
     const heading = document.createElement('strong');
-    heading.textContent = 'Alan tanıma raporu — 3.6.10';
+    heading.textContent = 'Alan tanıma raporu — 3.6.11';
     const note = document.createElement('div');
     note.textContent = 'Yalnızca hedef alanların teknik bilgileri. Alan değerleri ve hasta bilgileri rapora eklenmez. Rapor otomatik gönderilmez.';
     const output = document.createElement('textarea');
@@ -394,7 +394,7 @@
       saves[0].click();
       // Kaydet sonucunu HBYS gösterir; ek bilgi penceresi açma.
     } catch (error) {
-      alert('[3.6.10] ' + (saveClicked ? 'Kaydet işleminin sonucunu ekrandan kontrol et. ' : shortcutName + ' durdu: ') +
+      alert('[3.6.11] ' + (saveClicked ? 'Kaydet işleminin sonucunu ekrandan kontrol et. ' : shortcutName + ' durdu: ') +
         error.message);
     } finally {
       activeFields = null;
@@ -652,6 +652,14 @@
       const unitField = outpatientUnitField(root, doc);
       const unitSnapshot = outpatientUnitValue(unitField);
       const diagnosisCode = diagnosisForUnit(unitSnapshot);
+      // Yanlış birim eşleşmesi bildirildi; gerçek alan doğrulanana kadar tanı/kaydı durdur.
+      const outpatientUnitCheckOnly = true;
+      if (outpatientUnitCheckOnly) {
+        throw new Error('Birim kontrolü — okunan: "' + unitSnapshot.slice(0, 100) +
+          '"; hedef tanı: ' + diagnosisCode +
+          '; alan adı: ' + (unitField.getAttribute('name') || '(adsız)') +
+          '. Bu denemede tanı eklenmedi ve Kaydet’e basılmadı.');
+      }
       if (!diagnosisCells(root, diagnosisCode).length) {
         outpatientStage = 'Tanı Ekleme Listesi penceresini bulma';
         uniqueAction(root, 'ekle').click();
@@ -719,7 +727,7 @@
       }
       uniqueAction(root, 'kaydet').click();
     } catch (error) {
-      alert('[3.6.10] Poliklinik: ' + error.message);
+      alert('[3.6.11] Poliklinik: ' + error.message);
     } finally {
       release();
     }
