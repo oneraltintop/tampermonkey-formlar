@@ -1,4 +1,4 @@
-// Form Doldur uygulaması — sürüm 3.6.13
+// Form Doldur uygulaması — sürüm 3.6.14
 (() => {
   'use strict';
   if (!['http:', 'https:'].includes(location.protocol)) return;
@@ -87,9 +87,42 @@
     visit(document, 'ana');
     return found;
   };
+  // Açılır menü klavye kısayoluyla kapanırsa teknik yapıyı kısa süre bellekte tut.
+  // Yalnızca sabit çıkış seçeneği/Bugün etiketleri; alan değerleri toplanmaz.
+  const dischargePopupCache = new Map();
+  const captureDischargePopups = () => {
+    const now = Date.now();
+    for (const [key, snapshot] of dischargePopupCache) {
+      if (now - snapshot.capturedAt > 60000) dischargePopupCache.delete(key);
+    }
+    for (const { doc, path } of frameDocuments()) {
+      const visible = element => element.getClientRects().length > 0 &&
+        doc.defaultView.getComputedStyle(element).visibility !== 'hidden';
+      const candidates = doc.querySelectorAll(
+        '.x-boundlist-item, .x-combo-list-item, [role="option"], .x-menu-item-text, ' +
+        '.x-datepicker .x-btn, .x-datepicker [role="button"], .x-datepicker button, .x-datepicker-today'
+      );
+      for (const element of candidates) {
+        if (!visible(element)) continue;
+        const text = cleanLabel(element.textContent || '');
+        let target = null;
+        if (/^haliyle çıkış(?:\s*\/\s*taburcu)?$/u.test(text)) target = 'haliyle-çıkış';
+        if (/^(bugün|today)(?:\s|\(|$)/u.test(text)) target = 'bugün';
+        if (!target) continue;
+        const snapshot = {
+          capturedAt: now, frame: path, target,
+          element: describe(element), ancestors: technicalAncestors(element)
+        };
+        const key = path + ':' + target;
+        dischargePopupCache.set(key, snapshot);
+      }
+    }
+  };
+  setInterval(captureDischargePopups, 400);
+
   const inspectFields = () => {
     document.getElementById('form-teknik-panel')?.remove();
-    const report = { version: '3.6.13', fields: [], saveButtons: [], choices: [], actions: [], tabs: [], editors: [], diagnosisStructure: [], dischargeStructure: [] };
+    const report = { version: '3.6.14', fields: [], saveButtons: [], choices: [], actions: [], tabs: [], editors: [], diagnosisStructure: [], dischargeStructure: [] };
     for (const { doc, path } of frameDocuments()) {
       const isVisible = element => element.getClientRects().length > 0 &&
         doc.defaultView.getComputedStyle(element).visibility !== 'hidden';
@@ -173,11 +206,13 @@
         }
       }
     }
+    captureDischargePopups();
+    report.dischargePopupSnapshots = [...dischargePopupCache.values()];
     const panel = document.createElement('div');
     panel.id = 'form-teknik-panel';
     panel.style.cssText = 'position:fixed;inset:10% 10%;z-index:2147483647;background:white;color:black;padding:20px;border:2px solid #333;box-shadow:0 4px 20px #0008;font:14px Arial;display:flex;flex-direction:column;gap:12px';
     const heading = document.createElement('strong');
-    heading.textContent = 'Alan tanıma raporu — 3.6.13';
+    heading.textContent = 'Alan tanıma raporu — 3.6.14';
     const note = document.createElement('div');
     note.textContent = 'Yalnızca hedef alanların teknik bilgileri. Alan değerleri ve hasta bilgileri rapora eklenmez. Rapor otomatik gönderilmez.';
     const output = document.createElement('textarea');
@@ -408,7 +443,7 @@
       saves[0].click();
       // Kaydet sonucunu HBYS gösterir; ek bilgi penceresi açma.
     } catch (error) {
-      alert('[3.6.13] ' + (saveClicked ? 'Kaydet işleminin sonucunu ekrandan kontrol et. ' : shortcutName + ' durdu: ') +
+      alert('[3.6.14] ' + (saveClicked ? 'Kaydet işleminin sonucunu ekrandan kontrol et. ' : shortcutName + ' durdu: ') +
         error.message);
     } finally {
       activeFields = null;
@@ -747,7 +782,7 @@
       }
       uniqueAction(root, 'kaydet').click();
     } catch (error) {
-      alert('[3.6.13] Poliklinik: ' + error.message);
+      alert('[3.6.14] Poliklinik: ' + error.message);
     } finally {
       release();
     }
