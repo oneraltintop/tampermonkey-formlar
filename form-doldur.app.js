@@ -1,4 +1,4 @@
-// Form Doldur uygulaması — sürüm 3.6.27
+// Form Doldur uygulaması — sürüm 3.6.28
 (() => {
   'use strict';
   if (!['http:', 'https:'].includes(location.protocol)) return;
@@ -124,7 +124,7 @@
 
   const inspectFields = () => {
     document.getElementById('form-teknik-panel')?.remove();
-    const report = { version: '3.6.27', fields: [], saveButtons: [], choices: [], actions: [], tabs: [], editors: [], diagnosisStructure: [], dischargeStructure: [] };
+    const report = { version: '3.6.28', fields: [], saveButtons: [], choices: [], actions: [], tabs: [], editors: [], diagnosisStructure: [], dischargeStructure: [] };
     for (const { doc, path } of frameDocuments()) {
       const isVisible = element => element.getClientRects().length > 0 &&
         doc.defaultView.getComputedStyle(element).visibility !== 'hidden';
@@ -214,7 +214,7 @@
     panel.id = 'form-teknik-panel';
     panel.style.cssText = 'position:fixed;inset:10% 10%;z-index:2147483647;background:white;color:black;padding:20px;border:2px solid #333;box-shadow:0 4px 20px #0008;font:14px Arial;display:flex;flex-direction:column;gap:12px';
     const heading = document.createElement('strong');
-    heading.textContent = 'Alan tanıma raporu — 3.6.27';
+    heading.textContent = 'Alan tanıma raporu — 3.6.28';
     const note = document.createElement('div');
     note.textContent = 'Yalnızca hedef alanların teknik bilgileri. Alan değerleri ve hasta bilgileri rapora eklenmez. Rapor otomatik gönderilmez.';
     const output = document.createElement('textarea');
@@ -514,7 +514,7 @@
       saves[0].click();
       // Kaydet sonucunu HBYS gösterir; ek bilgi penceresi açma.
     } catch (error) {
-      alert('[3.6.27] ' + (saveClicked ? 'Kaydet işleminin sonucunu ekrandan kontrol et. ' : shortcutName + ' durdu: ') +
+      alert('[3.6.28] ' + (saveClicked ? 'Kaydet işleminin sonucunu ekrandan kontrol et. ' : shortcutName + ' durdu: ') +
         error.message);
     } finally {
       activeFields = null;
@@ -853,7 +853,7 @@
       }
       uniqueAction(root, 'kaydet').click();
     } catch (error) {
-      alert('[3.6.27] Poliklinik: ' + error.message);
+      alert('[3.6.28] Poliklinik: ' + error.message);
     } finally {
       release();
     }
@@ -1080,7 +1080,7 @@
       }
       return true;
     } catch (error) {
-      alert('[3.6.27] Makro: ' + error.message +
+      alert('[3.6.28] Makro: ' + error.message +
         (sent ? ' Kod otomatik yeniden gönderilmedi.' : ' Kod gönderilmedi.'));
       return false;
     } finally {
@@ -1089,40 +1089,61 @@
   };
   let macroBatchActive = false;
   let macroBatchCancel = false;
+  const macroFieldLoading = context => {
+    const { doc, field } = context;
+    const rect = field.getBoundingClientRect();
+    const view = doc.defaultView;
+    const x = Math.max(1, Math.min(view.innerWidth - 1, rect.left + rect.width / 2));
+    const y = Math.max(1, Math.min(view.innerHeight - 1, rect.top + rect.height / 2));
+    const hit = doc.elementFromPoint(x, y);
+    return !!hit?.closest('.x-mask, .x-mask-msg, .x-loadmask, .x-loading-mask');
+  };
   const waitMacroReady = async original => {
     let stableSince = null;
     let stableField = null;
     let stableRoot = null;
     let stableAnchor = null;
-    return waitUntil(() => {
-      if (macroBatchCancel) throw new Error('Kalan makrolar kullanıcı tarafından durduruldu.');
-      if (!macroPatientStable(original)) {
-        stableSince = null;
-        return null;
-      }
-      let latest;
-      try { latest = macroContext(); } catch (_) { stableSince = null; return null; }
-      if (latest.doc !== original.doc || latest.patientSnapshot !== original.patientSnapshot) {
-        throw new Error('Hasta veya başvuru değişti. Kalan makrolar gönderilmedi.');
-      }
-      const loading = [...latest.doc.querySelectorAll(
-        '.x-mask, .x-mask-msg, .x-loadmask, .x-loading-mask'
-      )].some(shown);
-      if (loading || latest.field.value.trim() || latest.field.disabled || latest.field.readOnly) {
-        stableSince = null;
-        return null;
-      }
-      if (stableSince === null || stableField !== latest.field ||
-          stableRoot !== latest.root || stableAnchor !== latest.anchor) {
-        stableSince = Date.now();
-        stableField = latest.field;
-        stableRoot = latest.root;
-        stableAnchor = latest.anchor;
-        return null;
-      }
-      // İlk makronun gecikmeli temizleme/yükleme işlemi ikinci yazımı silmesin.
-      return Date.now() - stableSince >= 900 ? latest : null;
-    }, 'HBYS yüklemesi bitmedi veya Makro Kodu alanı boş ve kararlı hale gelmedi. Kalan makrolar gönderilmedi.');
+    let reason = 'Alan bekleniyor';
+    const timeout = 'Makro Kodu alanı hazır olmadı. Kalan makrolar gönderilmedi.';
+    try {
+      return await waitUntil(() => {
+        if (macroBatchCancel) throw new Error('Kalan makrolar kullanıcı tarafından durduruldu.');
+        if (!macroPatientStable(original)) {
+          reason = 'Hasta listesi yenileniyor';
+          stableSince = null;
+          return null;
+        }
+        let latest;
+        try { latest = macroContext(); } catch (_) {
+          reason = 'Makro Kodu alanı bulunamıyor veya kullanılamıyor';
+          stableSince = null;
+          return null;
+        }
+        if (latest.doc !== original.doc || latest.patientSnapshot !== original.patientSnapshot) {
+          throw new Error('Hasta veya başvuru değişti. Kalan makrolar gönderilmedi.');
+        }
+        const loading = macroFieldLoading(latest);
+        if (loading || latest.field.value.trim() || latest.field.disabled || latest.field.readOnly) {
+          reason = loading ? 'Makro alanını örten yükleme var' :
+            latest.field.value.trim() ? 'Makro Kodu alanı dolu' : 'Makro alanı kilitli';
+          stableSince = null;
+          return null;
+        }
+        if (stableSince === null || stableField !== latest.field ||
+            stableRoot !== latest.root || stableAnchor !== latest.anchor) {
+          reason = 'Alan boş; kararlı kalması bekleniyor';
+          stableSince = Date.now();
+          stableField = latest.field;
+          stableRoot = latest.root;
+          stableAnchor = latest.anchor;
+          return null;
+        }
+        return Date.now() - stableSince >= 900 ? latest : null;
+      }, timeout);
+    } catch (error) {
+      if (error.message === timeout) throw new Error(timeout + ' Durum: ' + reason + '.');
+      throw error;
+    }
   };
   const runMacroBatch = async (original, selected) => {
     if (shortcutBusy || outpatientRunning || macroBatchActive || !selected.length) return;
@@ -1156,7 +1177,7 @@
         completed++;
       }
     } catch (error) {
-      alert('[3.6.27] Makro: ' + error.message);
+      alert('[3.6.28] Makro: ' + error.message);
     } finally {
       shortcutBusy = false;
       macroBatchActive = false;
@@ -1217,7 +1238,7 @@
       macroMenu = panel;
       document.body.appendChild(panel);
     } catch (error) {
-      alert('[3.6.27] Makro: ' + error.message);
+      alert('[3.6.28] Makro: ' + error.message);
     } finally {
       macroMenuOpening = false;
     }
