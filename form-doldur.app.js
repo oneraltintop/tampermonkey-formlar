@@ -1,4 +1,4 @@
-// Form Doldur uygulaması — sürüm 3.6.20
+// Form Doldur uygulaması — sürüm 3.6.21
 (() => {
   'use strict';
   if (!['http:', 'https:'].includes(location.protocol)) return;
@@ -124,7 +124,7 @@
 
   const inspectFields = () => {
     document.getElementById('form-teknik-panel')?.remove();
-    const report = { version: '3.6.20', fields: [], saveButtons: [], choices: [], actions: [], tabs: [], editors: [], diagnosisStructure: [], dischargeStructure: [] };
+    const report = { version: '3.6.21', fields: [], saveButtons: [], choices: [], actions: [], tabs: [], editors: [], diagnosisStructure: [], dischargeStructure: [] };
     for (const { doc, path } of frameDocuments()) {
       const isVisible = element => element.getClientRects().length > 0 &&
         doc.defaultView.getComputedStyle(element).visibility !== 'hidden';
@@ -214,7 +214,7 @@
     panel.id = 'form-teknik-panel';
     panel.style.cssText = 'position:fixed;inset:10% 10%;z-index:2147483647;background:white;color:black;padding:20px;border:2px solid #333;box-shadow:0 4px 20px #0008;font:14px Arial;display:flex;flex-direction:column;gap:12px';
     const heading = document.createElement('strong');
-    heading.textContent = 'Alan tanıma raporu — 3.6.20';
+    heading.textContent = 'Alan tanıma raporu — 3.6.21';
     const note = document.createElement('div');
     note.textContent = 'Yalnızca hedef alanların teknik bilgileri. Alan değerleri ve hasta bilgileri rapora eklenmez. Rapor otomatik gönderilmez.';
     const output = document.createElement('textarea');
@@ -514,7 +514,7 @@
       saves[0].click();
       // Kaydet sonucunu HBYS gösterir; ek bilgi penceresi açma.
     } catch (error) {
-      alert('[3.6.20] ' + (saveClicked ? 'Kaydet işleminin sonucunu ekrandan kontrol et. ' : shortcutName + ' durdu: ') +
+      alert('[3.6.21] ' + (saveClicked ? 'Kaydet işleminin sonucunu ekrandan kontrol et. ' : shortcutName + ' durdu: ') +
         error.message);
     } finally {
       activeFields = null;
@@ -853,7 +853,7 @@
       }
       uniqueAction(root, 'kaydet').click();
     } catch (error) {
-      alert('[3.6.20] Poliklinik: ' + error.message);
+      alert('[3.6.21] Poliklinik: ' + error.message);
     } finally {
       release();
     }
@@ -948,6 +948,20 @@
     }
     return rows;
   };
+  const macroAddButton = context => {
+    let scope = context.field.parentElement;
+    while (scope && context.root.contains(scope)) {
+      const buttons = [...scope.querySelectorAll('a[role="button"], button, .x-btn, [role="button"]')]
+        .filter(button => shown(button) &&
+          cleanLabel(button.textContent || '').replace(/\s+/gu, '') === 'makroekle' &&
+          !button.closest('[disabled], [aria-disabled="true"], .x-item-disabled'));
+      if (buttons.length === 1) return buttons[0];
+      if (buttons.length > 1) throw new Error('Birden fazla Makro Ekle düğmesi bulundu. İşlem yapılmadı.');
+      if (scope === context.root) break;
+      scope = scope.parentElement;
+    }
+    throw new Error('Makro Kodu alanına ait etkin Makro Ekle düğmesi bulunamadı.');
+  };
   const enterMacro = async (context, item) => {
     if (shortcutBusy) return;
     shortcutBusy = true;
@@ -959,21 +973,29 @@
       assertMacroContext(context);
       const { doc, field, root } = context;
       if (field.value.trim()) throw new Error('Makro Kodu alanı dolu. Önce mevcut kodu kontrol edip temizle.');
+      const addButton = macroAddButton(context);
       const previous = macroRows(root, item.code);
       closeMacroMenu();
       field.focus();
       assertMacroContext(context);
       const setter = Object.getOwnPropertyDescriptor(doc.defaultView.HTMLInputElement.prototype, 'value').set;
-      const key = item.code.slice(-1);
-      field.dispatchEvent(new doc.defaultView.KeyboardEvent('keydown', {
-        key, code: 'Digit' + key, keyCode: 48 + Number(key), which: 48 + Number(key), bubbles: true
-      }));
       setter.call(field, item.code);
       sent = true;
       field.dispatchEvent(new doc.defaultView.Event('input', { bubbles: true }));
-      field.dispatchEvent(new doc.defaultView.KeyboardEvent('keyup', {
-        key, code: 'Digit' + key, keyCode: 48 + Number(key), which: 48 + Number(key), bubbles: true
-      }));
+      field.dispatchEvent(new doc.defaultView.Event('change', { bubbles: true }));
+      field.blur();
+      assertMacroContext(context);
+      // Bazı ekranlar kod değişince kendiliğinden ekleyebilir; tekrar eklemeyi önle.
+      const changed = [...macroRows(root, item.code)].some(([row, text]) =>
+        !previous.has(row) || previous.get(row) !== text);
+      if (!changed) {
+        if (field.value.trim() !== item.code) throw new Error('Makro kodu değişti. Makro Ekle’ye basılmadı.');
+        if (!addButton.isConnected ||
+            addButton.closest('[disabled], [aria-disabled="true"], .x-item-disabled')) {
+          throw new Error('Makro Ekle düğmesi kullanılamıyor.');
+        }
+        addButton.click();
+      }
       await waitUntil(() => {
         assertMacroContext(context);
         const current = macroRows(root, item.code);
@@ -983,7 +1005,7 @@
         alert('Yatış makrosu listede görüldü. Gözleme alma adımı henüz bağlı değil; Tedavi alanını elle kontrol et.');
       }
     } catch (error) {
-      alert('[3.6.20] Makro: ' + error.message +
+      alert('[3.6.21] Makro: ' + error.message +
         (sent ? ' Kod otomatik yeniden gönderilmedi.' : ' Kod gönderilmedi.'));
     } finally {
       shortcutBusy = false;
@@ -998,7 +1020,7 @@
       assertMacroContext(context);
       const panel = document.createElement('div');
       panel.id = 'poliklinik-makro-menu';
-      panel.style.cssText = 'position:fixed;right:12px;top:20%;z-index:2147483647;background:white;color:#111;border:2px solid #285c8c;border-radius:8px;padding:12px;font:14px Arial;box-shadow:0 3px 14px #0005;display:flex;flex-direction:column;gap:6px';
+      panel.style.cssText = 'position:fixed;left:12px;top:20%;z-index:2147483647;background:white;color:#111;border:2px solid #285c8c;border-radius:8px;padding:12px;font:14px Arial;box-shadow:0 3px 14px #0005;display:flex;flex-direction:column;gap:6px';
       const heading = document.createElement('strong');
       heading.textContent = 'Makrolar · Alt+5 / Esc ile kapat';
       panel.appendChild(heading);
@@ -1018,7 +1040,7 @@
       macroMenu = panel;
       document.body.appendChild(panel);
     } catch (error) {
-      alert('[3.6.20] Makro: ' + error.message);
+      alert('[3.6.21] Makro: ' + error.message);
     }
   };
   const isMacroKey = event => event.altKey && !event.ctrlKey && !event.shiftKey && !event.metaKey &&
