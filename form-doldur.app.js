@@ -1,4 +1,4 @@
-// Form Doldur uygulaması — sürüm 3.6.22
+// Form Doldur uygulaması — sürüm 3.6.23
 (() => {
   'use strict';
   if (!['http:', 'https:'].includes(location.protocol)) return;
@@ -124,7 +124,7 @@
 
   const inspectFields = () => {
     document.getElementById('form-teknik-panel')?.remove();
-    const report = { version: '3.6.22', fields: [], saveButtons: [], choices: [], actions: [], tabs: [], editors: [], diagnosisStructure: [], dischargeStructure: [] };
+    const report = { version: '3.6.23', fields: [], saveButtons: [], choices: [], actions: [], tabs: [], editors: [], diagnosisStructure: [], dischargeStructure: [] };
     for (const { doc, path } of frameDocuments()) {
       const isVisible = element => element.getClientRects().length > 0 &&
         doc.defaultView.getComputedStyle(element).visibility !== 'hidden';
@@ -214,7 +214,7 @@
     panel.id = 'form-teknik-panel';
     panel.style.cssText = 'position:fixed;inset:10% 10%;z-index:2147483647;background:white;color:black;padding:20px;border:2px solid #333;box-shadow:0 4px 20px #0008;font:14px Arial;display:flex;flex-direction:column;gap:12px';
     const heading = document.createElement('strong');
-    heading.textContent = 'Alan tanıma raporu — 3.6.22';
+    heading.textContent = 'Alan tanıma raporu — 3.6.23';
     const note = document.createElement('div');
     note.textContent = 'Yalnızca hedef alanların teknik bilgileri. Alan değerleri ve hasta bilgileri rapora eklenmez. Rapor otomatik gönderilmez.';
     const output = document.createElement('textarea');
@@ -514,7 +514,7 @@
       saves[0].click();
       // Kaydet sonucunu HBYS gösterir; ek bilgi penceresi açma.
     } catch (error) {
-      alert('[3.6.22] ' + (saveClicked ? 'Kaydet işleminin sonucunu ekrandan kontrol et. ' : shortcutName + ' durdu: ') +
+      alert('[3.6.23] ' + (saveClicked ? 'Kaydet işleminin sonucunu ekrandan kontrol et. ' : shortcutName + ' durdu: ') +
         error.message);
     } finally {
       activeFields = null;
@@ -853,7 +853,7 @@
       }
       uniqueAction(root, 'kaydet').click();
     } catch (error) {
-      alert('[3.6.22] Poliklinik: ' + error.message);
+      alert('[3.6.23] Poliklinik: ' + error.message);
     } finally {
       release();
     }
@@ -861,6 +861,7 @@
 
   const macroItems = [
     { code: '530140', label: 'Enjeksiyon' },
+    { code: '530580', label: 'Pansuman' },
     { code: '530100', label: 'EKG' },
     { code: '530080', label: 'Damar yolu' },
     { code: '530160', label: 'IV' },
@@ -1043,7 +1044,7 @@
         alert('Yatış makrosu listede görüldü. Gözleme alma adımı henüz bağlı değil; Tedavi alanını elle kontrol et.');
       }
     } catch (error) {
-      alert('[3.6.22] Makro: ' + error.message +
+      alert('[3.6.23] Makro: ' + error.message +
         (sent ? ' Kod otomatik yeniden gönderilmedi.' : ' Kod gönderilmedi.'));
     } finally {
       shortcutBusy = false;
@@ -1078,7 +1079,7 @@
       macroMenu = panel;
       document.body.appendChild(panel);
     } catch (error) {
-      alert('[3.6.22] Makro: ' + error.message);
+      alert('[3.6.23] Makro: ' + error.message);
     }
   };
   const isMacroKey = event => event.altKey && !event.ctrlKey && !event.shiftKey && !event.metaKey &&
