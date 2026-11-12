@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Form Doldur
 // @namespace    local.atv.form
-// @version      3.4.0
+// @version      3.4.1
 // @description  Hasta kayıt ekranında pencere kapatma kodunu GitHub'dan yükler.
 // @match        *://hbys.aydinism.gov.tr/hbys-web/desktop/desktop.html*
 // @updateURL    https://raw.githubusercontent.com/oneraltintop/tampermonkey-formlar/main/form-doldur.user.js
@@ -35,6 +35,32 @@
         : 'Bu sayfada Form Doldur etkinleştirildi. Sayfayı yenile. Bu formun doldurma kodu ayrıca hazırlanmalıdır.');
     }
   );
+  const doctorSettingKey = 'form-doldur:duty-doctor';
+  const doctorSettings = {
+    getDutyDoctor: () => {
+      const stored = GM_getValue(doctorSettingKey, 'Sevgi Sever');
+      if (typeof stored !== 'string' || /[\r\n]/u.test(stored)) {
+        throw new Error('Nöbetçi doktor ayarını menüden yeniden gir.');
+      }
+      const name = stored.replace(/\s+/g, ' ').trim();
+      if (!name || name.length > 120) throw new Error('Geçerli bir nöbetçi doktor adı gir.');
+      return name;
+    }
+  };
+  GM_registerMenuCommand('Nöbetçi doktoru değiştir', () => {
+    let current = '';
+    try { current = doctorSettings.getDutyDoctor(); } catch (_) {}
+    const input = prompt('Doktorun listede görünen tam adını yaz. Bu ayar yalnızca bu Chrome profilinde saklanır.', current);
+    if (input === null) return;
+    const name = input.replace(/\s+/g, ' ').trim();
+    if (!name || name.length > 120 || /[\r\n]/u.test(input)) {
+      alert('Ad boş bırakılamaz ve tek satır olmalıdır. Önceki ayar korundu.');
+      return;
+    }
+    GM_setValue(doctorSettingKey, name);
+    alert('Nöbetçi doktor: ' + name + '. Alt+1, Alt+2 ve Alt+3 bu doktoru kullanacak. Sayfayı yenilemene gerek yok.');
+  });
+
   if (!enabled) return;
   if (document.getElementById('a101-form-doldur') ||
       document.getElementById('a101-form-loader')) return;
@@ -99,14 +125,14 @@
           const version = typeof source === 'string' &&
             source.match(/^\/\/ Form Doldur uygulaması — sürüm ([0-9.]+)\r?\n/);
           if (!version) throw new Error('GitHub beklenen uygulama kodunu döndürmedi.');
-          new Function(source + '\n//# sourceURL=form-doldur.app.js')();
+          new Function('formDoldurSettings', source + '\n//# sourceURL=form-doldur.app.js')(doctorSettings);
           const button = document.getElementById('a101-form-doldur');
           if (!button) {
             fail('Bu sayfa için uygulama koduna henüz form desteği eklenmedi.',
               'Bu sayfa için form henüz hazırlanmadı');
             return;
           }
-          button.title = 'Yükleyici 3.4.0 · Uygulama ' + version[1] +
+          button.title = 'Yükleyici 3.4.1 · Uygulama ' + version[1] +
             ' · ' + ((Date.now() - start) / 1000).toFixed(1) + ' sn';
           status.remove();
         } catch (error) {
