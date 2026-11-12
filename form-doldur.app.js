@@ -1,4 +1,4 @@
-// Form Doldur uygulaması — sürüm 3.6.9
+// Form Doldur uygulaması — sürüm 3.6.10
 (() => {
   'use strict';
   if (!['http:', 'https:'].includes(location.protocol)) return;
@@ -87,7 +87,7 @@
   };
   const inspectFields = () => {
     document.getElementById('form-teknik-panel')?.remove();
-    const report = { version: '3.6.9', fields: [], saveButtons: [], choices: [], actions: [], tabs: [], editors: [], diagnosisStructure: [] };
+    const report = { version: '3.6.10', fields: [], saveButtons: [], choices: [], actions: [], tabs: [], editors: [], diagnosisStructure: [] };
     for (const { doc, path } of frameDocuments()) {
       const isVisible = element => element.getClientRects().length > 0 &&
         doc.defaultView.getComputedStyle(element).visibility !== 'hidden';
@@ -163,7 +163,7 @@
     panel.id = 'form-teknik-panel';
     panel.style.cssText = 'position:fixed;inset:10% 10%;z-index:2147483647;background:white;color:black;padding:20px;border:2px solid #333;box-shadow:0 4px 20px #0008;font:14px Arial;display:flex;flex-direction:column;gap:12px';
     const heading = document.createElement('strong');
-    heading.textContent = 'Alan tanıma raporu — 3.6.9';
+    heading.textContent = 'Alan tanıma raporu — 3.6.10';
     const note = document.createElement('div');
     note.textContent = 'Yalnızca hedef alanların teknik bilgileri. Alan değerleri ve hasta bilgileri rapora eklenmez. Rapor otomatik gönderilmez.';
     const output = document.createElement('textarea');
@@ -394,7 +394,7 @@
       saves[0].click();
       // Kaydet sonucunu HBYS gösterir; ek bilgi penceresi açma.
     } catch (error) {
-      alert('[3.6.9] ' + (saveClicked ? 'Kaydet işleminin sonucunu ekrandan kontrol et. ' : shortcutName + ' durdu: ') +
+      alert('[3.6.10] ' + (saveClicked ? 'Kaydet işleminin sonucunu ekrandan kontrol et. ' : shortcutName + ' durdu: ') +
         error.message);
     } finally {
       activeFields = null;
@@ -547,17 +547,40 @@
     if (unit === 'pansuman') return 'Pansuman yapıldı';
     return 'Dr yönlendirildi';
   };
+  const outpatientUnitValue = field =>
+    typeof field.value === 'string' ? field.value : (field.textContent || '').trim();
   const outpatientUnitField = (root, doc) => {
-    const fields = new Set();
-    for (const label of root.querySelectorAll('label, .x-form-item-label')) {
-      if (cleanLabel(label.textContent || '') !== 'birim' || !shown(label)) continue;
-      const linked = label.getAttribute('for');
-      const input = linked ? doc.getElementById(linked) :
-        label.closest('.x-form-item, .x-field')?.querySelector('input[type="text"]');
-      if (input && shown(input)) fields.add(input);
+    const selector = 'input:not([type="hidden"]), .x-form-display-field';
+    const collect = scope => {
+      const fields = new Set();
+      for (const label of scope.querySelectorAll('label, .x-form-item-label')) {
+        if (cleanLabel(label.textContent || '') !== 'birim' || !shown(label)) continue;
+        const linked = label.getAttribute('for');
+        const target = linked ? doc.getElementById(linked) : null;
+        const add = element => {
+          if (element && scope.contains(element) && shown(element) &&
+              outpatientUnitValue(element).trim()) fields.add(element);
+        };
+        if (target?.matches(selector)) add(target);
+        else if (target) target.querySelectorAll(selector).forEach(add);
+        if (!fields.size || !target) {
+          label.closest('.x-form-item, .x-field')?.querySelectorAll(selector).forEach(add);
+        }
+      }
+      return [...fields];
+    };
+    // Triaj ile aynı form grubundan başlayarak ilerle; diğer ekranların Birim alanını alma.
+    const anchors = [...root.querySelectorAll('input[name="pol.triaj"]')];
+    if (anchors.length !== 1) throw new Error('Poliklinik formu tek olarak belirlenemedi. Tanı seçilmedi.');
+    let scope = anchors[0].parentElement;
+    while (scope && root.contains(scope)) {
+      const fields = collect(scope);
+      if (fields.length === 1) return fields[0];
+      if (fields.length > 1) throw new Error('Poliklinik formunda birden fazla Birim alanı bulundu. Tanı seçilmedi.');
+      if (scope === root) break;
+      scope = scope.parentElement;
     }
-    if (fields.size !== 1) throw new Error('Poliklinik birimi tek olarak belirlenemedi. Tanı seçilmedi.');
-    return [...fields][0];
+    throw new Error('Poliklinik Birim alanı okunamadı. Tanı seçilmedi.');
   };
   let outpatientRunning = false;
   const runOutpatient = async () => {
@@ -627,7 +650,7 @@
       openOutpatientTab(root, 'muayene bilgileri');
       await waitFor(() => outpatientTabs(root, 'muayene bilgileri')[0]?.className.includes('active'));
       const unitField = outpatientUnitField(root, doc);
-      const unitSnapshot = unitField.value;
+      const unitSnapshot = outpatientUnitValue(unitField);
       const diagnosisCode = diagnosisForUnit(unitSnapshot);
       if (!diagnosisCells(root, diagnosisCode).length) {
         outpatientStage = 'Tanı Ekleme Listesi penceresini bulma';
@@ -688,7 +711,7 @@
       outpatientStage = 'Notun alana aktarılmasını doğrulama';
       await waitFor(() => note.value === next);
       assertPatient();
-      if (!unitField.isConnected || unitField.value !== unitSnapshot) {
+      if (!unitField.isConnected || outpatientUnitValue(unitField) !== unitSnapshot) {
         throw new Error('Poliklinik birimi değişti. Kayıt yapılmadı.');
       }
       if (!note.isConnected || note.value !== next || !diagnosisCells(root, diagnosisCode).length) {
@@ -696,7 +719,7 @@
       }
       uniqueAction(root, 'kaydet').click();
     } catch (error) {
-      alert('[3.6.9] Poliklinik: ' + error.message);
+      alert('[3.6.10] Poliklinik: ' + error.message);
     } finally {
       release();
     }
