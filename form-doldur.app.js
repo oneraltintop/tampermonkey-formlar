@@ -1,4 +1,4 @@
-// Form Doldur uygulaması — sürüm 3.6.12
+// Form Doldur uygulaması — sürüm 3.6.13
 (() => {
   'use strict';
   if (!['http:', 'https:'].includes(location.protocol)) return;
@@ -46,7 +46,9 @@
     ['birim', /^birim$/u],
     ['doktor', /^doktor$/u],
     ['doktor-notlari', /^doktor notları$/u],
-    ['tani-arama', /^arama$/u]
+    ['tani-arama', /^arama$/u],
+    ['cikis-sekli', /^çıkış şekli$/u],
+    ['cikis-tarihi', /^çıkış tarihi?$/u]
   ];
   const cleanLabel = text => normalize(text).replace(/[:*]+$/g, '').trim();
   const technical = text => (text || '').slice(0, 160)
@@ -87,7 +89,7 @@
   };
   const inspectFields = () => {
     document.getElementById('form-teknik-panel')?.remove();
-    const report = { version: '3.6.12', fields: [], saveButtons: [], choices: [], actions: [], tabs: [], editors: [], diagnosisStructure: [] };
+    const report = { version: '3.6.13', fields: [], saveButtons: [], choices: [], actions: [], tabs: [], editors: [], diagnosisStructure: [], dischargeStructure: [] };
     for (const { doc, path } of frameDocuments()) {
       const isVisible = element => element.getClientRects().length > 0 &&
         doc.defaultView.getComputedStyle(element).visibility !== 'hidden';
@@ -96,6 +98,7 @@
         if (!element || recorded.has(element) || !isVisible(element)) return;
         recorded.add(element);
         report.fields.push({ frame: path, label, ...describe(element) });
+        if (label.startsWith('cikis-')) report.dischargeStructure.push({ frame: path, target: label, ancestors: technicalAncestors(element) });
       };
       for (const label of doc.querySelectorAll('label, .x-form-item-label, .x-form-cb-label')) {
         const target = diagnosticTargets.find(([, pattern]) =>
@@ -134,8 +137,19 @@
       for (const tab of doc.querySelectorAll('[role="tab"], .x-tab')) {
         if (!isVisible(tab)) continue;
         const label = cleanLabel(tab.textContent || '');
-        if (['doktor notları', 'muayene bilgileri', 'tanılar', 'sık kullanılan tanılar'].includes(label)) {
+        if (['doktor notları', 'muayene bilgileri', 'tanılar', 'sık kullanılan tanılar', 'çıkış bilgileri'].includes(label)) {
           report.tabs.push({ frame: path, label, ...describe(tab) });
+        }
+      }
+      for (const today of doc.querySelectorAll(
+        '.x-datepicker .x-btn, .x-datepicker [role="button"], .x-datepicker button, .x-datepicker-today'
+      )) {
+        const text = cleanLabel(today.textContent || '');
+        if (isVisible(today) && /^(bugün|today)(?:\s|\(|$)/u.test(text)) {
+          report.actions.push({ frame: path, label: 'bugün', ...describe(today) });
+          report.dischargeStructure.push({
+            frame: path, target: 'bugün', ancestors: technicalAncestors(today)
+          });
         }
       }
       // Yalnızca editör öğelerinin yapısı; yazılı notlar veya HTML içeriği alınmaz.
@@ -154,7 +168,7 @@
       }
       for (const option of doc.querySelectorAll('[role="option"], .x-boundlist-item, .x-combo-list-item')) {
         const label = cleanLabel(option.textContent || '');
-        if (isVisible(option) && ['araç', 'yeşil', 'enjeksiyon', 'pansuman', 'sevgi sever'].includes(label)) {
+        if (isVisible(option) && ['araç', 'yeşil', 'enjeksiyon', 'pansuman', 'sevgi sever', 'haliyle çıkış/taburcu', 'haliyle çıkış / taburcu', 'haliyle çıkış'].includes(label)) {
           report.choices.push({ frame: path, label, ...describe(option) });
         }
       }
@@ -163,7 +177,7 @@
     panel.id = 'form-teknik-panel';
     panel.style.cssText = 'position:fixed;inset:10% 10%;z-index:2147483647;background:white;color:black;padding:20px;border:2px solid #333;box-shadow:0 4px 20px #0008;font:14px Arial;display:flex;flex-direction:column;gap:12px';
     const heading = document.createElement('strong');
-    heading.textContent = 'Alan tanıma raporu — 3.6.12';
+    heading.textContent = 'Alan tanıma raporu — 3.6.13';
     const note = document.createElement('div');
     note.textContent = 'Yalnızca hedef alanların teknik bilgileri. Alan değerleri ve hasta bilgileri rapora eklenmez. Rapor otomatik gönderilmez.';
     const output = document.createElement('textarea');
@@ -394,7 +408,7 @@
       saves[0].click();
       // Kaydet sonucunu HBYS gösterir; ek bilgi penceresi açma.
     } catch (error) {
-      alert('[3.6.12] ' + (saveClicked ? 'Kaydet işleminin sonucunu ekrandan kontrol et. ' : shortcutName + ' durdu: ') +
+      alert('[3.6.13] ' + (saveClicked ? 'Kaydet işleminin sonucunu ekrandan kontrol et. ' : shortcutName + ' durdu: ') +
         error.message);
     } finally {
       activeFields = null;
@@ -733,7 +747,7 @@
       }
       uniqueAction(root, 'kaydet').click();
     } catch (error) {
-      alert('[3.6.12] Poliklinik: ' + error.message);
+      alert('[3.6.13] Poliklinik: ' + error.message);
     } finally {
       release();
     }
