@@ -1,4 +1,4 @@
-// Form Doldur uygulaması — sürüm 3.6.23
+// Form Doldur uygulaması — sürüm 3.6.24
 (() => {
   'use strict';
   if (!['http:', 'https:'].includes(location.protocol)) return;
@@ -124,7 +124,7 @@
 
   const inspectFields = () => {
     document.getElementById('form-teknik-panel')?.remove();
-    const report = { version: '3.6.23', fields: [], saveButtons: [], choices: [], actions: [], tabs: [], editors: [], diagnosisStructure: [], dischargeStructure: [] };
+    const report = { version: '3.6.24', fields: [], saveButtons: [], choices: [], actions: [], tabs: [], editors: [], diagnosisStructure: [], dischargeStructure: [] };
     for (const { doc, path } of frameDocuments()) {
       const isVisible = element => element.getClientRects().length > 0 &&
         doc.defaultView.getComputedStyle(element).visibility !== 'hidden';
@@ -214,7 +214,7 @@
     panel.id = 'form-teknik-panel';
     panel.style.cssText = 'position:fixed;inset:10% 10%;z-index:2147483647;background:white;color:black;padding:20px;border:2px solid #333;box-shadow:0 4px 20px #0008;font:14px Arial;display:flex;flex-direction:column;gap:12px';
     const heading = document.createElement('strong');
-    heading.textContent = 'Alan tanıma raporu — 3.6.23';
+    heading.textContent = 'Alan tanıma raporu — 3.6.24';
     const note = document.createElement('div');
     note.textContent = 'Yalnızca hedef alanların teknik bilgileri. Alan değerleri ve hasta bilgileri rapora eklenmez. Rapor otomatik gönderilmez.';
     const output = document.createElement('textarea');
@@ -514,7 +514,7 @@
       saves[0].click();
       // Kaydet sonucunu HBYS gösterir; ek bilgi penceresi açma.
     } catch (error) {
-      alert('[3.6.23] ' + (saveClicked ? 'Kaydet işleminin sonucunu ekrandan kontrol et. ' : shortcutName + ' durdu: ') +
+      alert('[3.6.24] ' + (saveClicked ? 'Kaydet işleminin sonucunu ekrandan kontrol et. ' : shortcutName + ' durdu: ') +
         error.message);
     } finally {
       activeFields = null;
@@ -853,7 +853,7 @@
       }
       uniqueAction(root, 'kaydet').click();
     } catch (error) {
-      alert('[3.6.23] Poliklinik: ' + error.message);
+      alert('[3.6.24] Poliklinik: ' + error.message);
     } finally {
       release();
     }
@@ -929,15 +929,21 @@
     context.patientSnapshot = selected[0].textContent;
     return context;
   };
+  const macroPatientStable = context => {
+    const selected = macroPatientRows(context.doc);
+    // Liste yüklenirken seçili satır kısa süre kaybolabilir; sadece bekle.
+    if (!selected.length) return false;
+    if (selected.length !== 1 || selected[0].textContent !== context.patientSnapshot) {
+      throw new Error('Seçili hasta veya başvuru değişti. İşlem durduruldu.');
+    }
+    return true;
+  };
   const assertMacroContext = context => {
-    const { field, anchor, root, patientRow, patientSnapshot } = context;
-    const selectedPatients = macroPatientRows(context.doc);
-    if (selectedPatients.length !== 1 || selectedPatients[0] !== patientRow ||
-        !field.isConnected || !anchor.isConnected || !root.isConnected ||
-        !patientRow.isConnected || patientRow.textContent !== patientSnapshot ||
-        !patientRow.matches('.x-grid-row-selected, .x-grid3-row-selected, .x-grid-item-selected') ||
+    const { field, anchor, root } = context;
+    if (!macroPatientStable(context)) throw new Error('Seçili hasta doğrulanamadı. İşlem durduruldu.');
+    if (!field.isConnected || !anchor.isConnected || !root.isConnected ||
         !shown(field) || field.disabled || field.readOnly) {
-      throw new Error('Hasta, başvuru veya Makro Kodu alanı değişti. İşlem durduruldu.');
+      throw new Error('Makro Kodu alanı şu anda kullanılamıyor. İşlem durduruldu.');
     }
   };
   const macroRows = (root, code) => {
@@ -1002,11 +1008,14 @@
     }
     // Ext JS'nin gecikmeli alan değişikliği kontrolünün tamamlanmasına izin ver.
     await pause(750);
-    assertMacroContext(context);
-    field.dispatchEvent(new doc.defaultView.Event('change', { bubbles: true }));
-    field.blur();
-    await pause(150);
-    assertMacroContext(context);
+    await waitUntil(() => macroPatientStable(context), 'Seçili hasta yükleme sonrasında doğrulanamadı.');
+    // Kod işlendiğinde alan yenilenmiş veya kilitlenmiş olabilir. Eski alana dokunma.
+    if (field.isConnected && shown(field) && !field.disabled && !field.readOnly &&
+        field.value === code) {
+      field.dispatchEvent(new doc.defaultView.Event('change', { bubbles: true }));
+      field.blur();
+      await pause(150);
+    }
   };
   const enterMacro = async (context, item) => {
     if (shortcutBusy) return;
@@ -1027,24 +1036,23 @@
       // Bazı ekranlar kod değişince kendiliğinden ekleyebilir; tekrar eklemeyi önle.
       const changed = [...macroRows(root, item.code)].some(([row, text]) =>
         !previous.has(row) || previous.get(row) !== text);
-      if (!changed) {
-        if (field.value.trim() !== item.code) throw new Error('Makro kodu değişti. Makro Ekle’ye basılmadı.');
-        if (!addButton.isConnected ||
-            addButton.closest('[disabled], [aria-disabled="true"], .x-item-disabled')) {
-          throw new Error('Makro Ekle düğmesi kullanılamıyor.');
-        }
+      if (!changed && field.isConnected && shown(field) && !field.disabled &&
+          !field.readOnly && field.value.trim() === item.code && addButton.isConnected &&
+          !addButton.closest('[disabled], [aria-disabled="true"], .x-item-disabled')) {
+        assertMacroContext(context);
         addButton.click();
       }
+      // Gönderimden sonra hasta kontrolü sürer; giriş alanının yeniden çizilmesini hata sayma.
       await waitUntil(() => {
-        assertMacroContext(context);
-        const current = macroRows(root, item.code);
+        if (!macroPatientStable(context)) return false;
+        const current = macroRows(root.isConnected ? root : doc, item.code);
         return [...current].some(([row, text]) => !previous.has(row) || previous.get(row) !== text);
       }, 'Kod bir kez gönderildi; listede eklenmesi doğrulanamadı. Tekrar seçmeden önce Hizmet Listesi’ni kontrol et.');
       if (item.code === '510120') {
         alert('Yatış makrosu listede görüldü. Gözleme alma adımı henüz bağlı değil; Tedavi alanını elle kontrol et.');
       }
     } catch (error) {
-      alert('[3.6.23] Makro: ' + error.message +
+      alert('[3.6.24] Makro: ' + error.message +
         (sent ? ' Kod otomatik yeniden gönderilmedi.' : ' Kod gönderilmedi.'));
     } finally {
       shortcutBusy = false;
@@ -1079,7 +1087,7 @@
       macroMenu = panel;
       document.body.appendChild(panel);
     } catch (error) {
-      alert('[3.6.23] Makro: ' + error.message);
+      alert('[3.6.24] Makro: ' + error.message);
     }
   };
   const isMacroKey = event => event.altKey && !event.ctrlKey && !event.shiftKey && !event.metaKey &&
