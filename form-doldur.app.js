@@ -1,4 +1,4 @@
-// Form Doldur uygulaması — sürüm 3.6.17
+// Form Doldur uygulaması — sürüm 3.6.18
 (() => {
   'use strict';
   if (!['http:', 'https:'].includes(location.protocol)) return;
@@ -122,7 +122,7 @@
 
   const inspectFields = () => {
     document.getElementById('form-teknik-panel')?.remove();
-    const report = { version: '3.6.17', fields: [], saveButtons: [], choices: [], actions: [], tabs: [], editors: [], diagnosisStructure: [], dischargeStructure: [] };
+    const report = { version: '3.6.18', fields: [], saveButtons: [], choices: [], actions: [], tabs: [], editors: [], diagnosisStructure: [], dischargeStructure: [] };
     for (const { doc, path } of frameDocuments()) {
       const isVisible = element => element.getClientRects().length > 0 &&
         doc.defaultView.getComputedStyle(element).visibility !== 'hidden';
@@ -212,7 +212,7 @@
     panel.id = 'form-teknik-panel';
     panel.style.cssText = 'position:fixed;inset:10% 10%;z-index:2147483647;background:white;color:black;padding:20px;border:2px solid #333;box-shadow:0 4px 20px #0008;font:14px Arial;display:flex;flex-direction:column;gap:12px';
     const heading = document.createElement('strong');
-    heading.textContent = 'Alan tanıma raporu — 3.6.17';
+    heading.textContent = 'Alan tanıma raporu — 3.6.18';
     const note = document.createElement('div');
     note.textContent = 'Yalnızca hedef alanların teknik bilgileri. Alan değerleri ve hasta bilgileri rapora eklenmez. Rapor otomatik gönderilmez.';
     const output = document.createElement('textarea');
@@ -400,7 +400,18 @@
       return candidates.size === 1 ? [...candidates.values()][0] : null;
     }, step.label + ' listesi veya "' + step.value + '" satırı bulunamadı. Kayıt yapılmadı.');
 
-    option.click();
+    if (force && ['acilGelisSekli', 'triaj'].includes(step.name)) {
+      for (const type of ['mousedown', 'mouseup', 'click']) {
+        option.dispatchEvent(new doc.defaultView.MouseEvent(type, {
+          bubbles: true, cancelable: true, view: doc.defaultView,
+          button: 0, buttons: type === 'mousedown' ? 1 : 0
+        }));
+      }
+      field.blur();
+      await pause(150);
+    } else {
+      option.click();
+    }
     if (option.closest('.x-grid-row, .x-grid3-row, .x-grid-item, [role="row"]') &&
         option.isConnected && shown(option)) {
       option.dispatchEvent(new doc.defaultView.MouseEvent('dblclick', {
@@ -470,7 +481,7 @@
         field.getAttribute('name') === shortcutSteps[index].name);
       for (const step of shortcutSteps) {
         if (!sameForm()) throw new Error('Ekran değişti. Kayıt yapılmadı.');
-        await chooseValue(doc, step, unit === 'Acil Servis' && step.name === 'acilGelisSekli');
+        await chooseValue(doc, step, unit === 'Acil Servis' && ['acilGelisSekli', 'triaj'].includes(step.name));
       }
       if (!sameForm() || !shortcutSteps.every(step => expectedValue(doc, step))) {
         throw new Error('Dört seçim birlikte doğrulanamadı. Kayıt yapılmadı.');
@@ -501,7 +512,7 @@
       saves[0].click();
       // Kaydet sonucunu HBYS gösterir; ek bilgi penceresi açma.
     } catch (error) {
-      alert('[3.6.17] ' + (saveClicked ? 'Kaydet işleminin sonucunu ekrandan kontrol et. ' : shortcutName + ' durdu: ') +
+      alert('[3.6.18] ' + (saveClicked ? 'Kaydet işleminin sonucunu ekrandan kontrol et. ' : shortcutName + ' durdu: ') +
         error.message);
     } finally {
       activeFields = null;
@@ -840,7 +851,7 @@
       }
       uniqueAction(root, 'kaydet').click();
     } catch (error) {
-      alert('[3.6.17] Poliklinik: ' + error.message);
+      alert('[3.6.18] Poliklinik: ' + error.message);
     } finally {
       release();
     }
