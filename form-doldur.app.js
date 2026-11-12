@@ -1,4 +1,4 @@
-// Form Doldur uygulaması — sürüm 3.6.28
+// Form Doldur uygulaması — sürüm 3.6.29
 (() => {
   'use strict';
   if (!['http:', 'https:'].includes(location.protocol)) return;
@@ -124,7 +124,7 @@
 
   const inspectFields = () => {
     document.getElementById('form-teknik-panel')?.remove();
-    const report = { version: '3.6.28', fields: [], saveButtons: [], choices: [], actions: [], tabs: [], editors: [], diagnosisStructure: [], dischargeStructure: [] };
+    const report = { version: '3.6.29', fields: [], saveButtons: [], choices: [], actions: [], tabs: [], editors: [], diagnosisStructure: [], dischargeStructure: [] };
     for (const { doc, path } of frameDocuments()) {
       const isVisible = element => element.getClientRects().length > 0 &&
         doc.defaultView.getComputedStyle(element).visibility !== 'hidden';
@@ -214,7 +214,7 @@
     panel.id = 'form-teknik-panel';
     panel.style.cssText = 'position:fixed;inset:10% 10%;z-index:2147483647;background:white;color:black;padding:20px;border:2px solid #333;box-shadow:0 4px 20px #0008;font:14px Arial;display:flex;flex-direction:column;gap:12px';
     const heading = document.createElement('strong');
-    heading.textContent = 'Alan tanıma raporu — 3.6.28';
+    heading.textContent = 'Alan tanıma raporu — 3.6.29';
     const note = document.createElement('div');
     note.textContent = 'Yalnızca hedef alanların teknik bilgileri. Alan değerleri ve hasta bilgileri rapora eklenmez. Rapor otomatik gönderilmez.';
     const output = document.createElement('textarea');
@@ -514,7 +514,7 @@
       saves[0].click();
       // Kaydet sonucunu HBYS gösterir; ek bilgi penceresi açma.
     } catch (error) {
-      alert('[3.6.28] ' + (saveClicked ? 'Kaydet işleminin sonucunu ekrandan kontrol et. ' : shortcutName + ' durdu: ') +
+      alert('[3.6.29] ' + (saveClicked ? 'Kaydet işleminin sonucunu ekrandan kontrol et. ' : shortcutName + ' durdu: ') +
         error.message);
     } finally {
       activeFields = null;
@@ -853,7 +853,7 @@
       }
       uniqueAction(root, 'kaydet').click();
     } catch (error) {
-      alert('[3.6.28] Poliklinik: ' + error.message);
+      alert('[3.6.29] Poliklinik: ' + error.message);
     } finally {
       release();
     }
@@ -1080,7 +1080,7 @@
       }
       return true;
     } catch (error) {
-      alert('[3.6.28] Makro: ' + error.message +
+      alert('[3.6.29] Makro: ' + error.message +
         (sent ? ' Kod otomatik yeniden gönderilmedi.' : ' Kod gönderilmedi.'));
       return false;
     } finally {
@@ -1177,7 +1177,7 @@
         completed++;
       }
     } catch (error) {
-      alert('[3.6.28] Makro: ' + error.message);
+      alert('[3.6.29] Makro: ' + error.message);
     } finally {
       shortcutBusy = false;
       macroBatchActive = false;
@@ -1199,46 +1199,58 @@
       assertMacroContext(context);
       const panel = document.createElement('div');
       panel.id = 'poliklinik-makro-menu';
-      panel.style.cssText = 'position:fixed;left:12px;top:20%;z-index:2147483647;background:white;color:#111;border:2px solid #285c8c;border-radius:8px;padding:12px;font:14px Arial;box-shadow:0 3px 14px #0005;display:flex;flex-direction:column;gap:6px';
+      panel.style.cssText = 'position:fixed;left:12px;top:20%;z-index:2147483647;background:white;color:#111;border:2px solid #285c8c;border-radius:8px;padding:12px;font:14px Arial;box-shadow:0 3px 14px #0005;display:flex;flex-direction:column;gap:6px;max-height:75vh;max-width:calc(100vw - 24px);overflow:auto;box-sizing:border-box';
       const heading = document.createElement('strong');
       heading.textContent = 'Makrolar · Alt+5 / Esc ile kapat';
       panel.appendChild(heading);
       const selectedCodes = new Set();
+      const body = document.createElement('div');
+      body.style.cssText = 'display:flex;gap:12px;align-items:flex-start';
+      const choices = document.createElement('div');
+      choices.style.cssText = 'display:flex;flex-direction:column;gap:6px;min-width:210px';
+      const actions = document.createElement('div');
+      actions.style.cssText = 'display:flex;flex-direction:column;gap:8px;position:sticky;top:0';
       const submit = document.createElement('button');
       submit.type = 'button';
-      submit.textContent = 'Seçilenleri ekle (0)';
+      submit.textContent = 'Ekle (0)';
       submit.disabled = true;
+      submit.style.cssText = 'min-width:88px;min-height:48px;padding:10px 14px;font:bold 15px Arial;cursor:pointer';
       for (const item of macroItems) {
-        const row = document.createElement('label');
-        row.style.cssText = 'padding:7px 10px;cursor:pointer;display:flex;gap:8px;align-items:center';
-        const checkbox = document.createElement('input');
-        checkbox.type = 'checkbox';
-        checkbox.addEventListener('change', () => {
-          if (checkbox.checked) selectedCodes.add(item.code);
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.textContent = item.code + ' · ' + item.label;
+        button.setAttribute('aria-pressed', 'false');
+        button.style.cssText = 'min-height:42px;padding:10px 14px;border:2px solid #c4ced8;border-radius:6px;background:#f4f6f8;color:#111;font:14px Arial;text-align:left;cursor:pointer;touch-action:manipulation';
+        button.addEventListener('click', () => {
+          const selected = !selectedCodes.has(item.code);
+          if (selected) selectedCodes.add(item.code);
           else selectedCodes.delete(item.code);
+          button.setAttribute('aria-pressed', String(selected));
+          button.style.backgroundColor = selected ? '#176b48' : '#f4f6f8';
+          button.style.color = selected ? '#fff' : '#111';
+          button.style.borderColor = selected ? '#176b48' : '#c4ced8';
           submit.disabled = selectedCodes.size === 0;
-          submit.textContent = 'Seçilenleri ekle (' + selectedCodes.size + ')';
+          submit.textContent = 'Ekle (' + selectedCodes.size + ')';
         });
-        const label = document.createElement('span');
-        label.textContent = item.code + ' · ' + item.label;
-        row.append(checkbox, label);
-        panel.appendChild(row);
+        choices.appendChild(button);
       }
       submit.addEventListener('click', () => {
         if (submit.disabled) return;
         submit.disabled = true;
         void runMacroBatch(context, macroItems.filter(item => selectedCodes.has(item.code)));
       });
-      panel.appendChild(submit);
       const close = document.createElement('button');
       close.type = 'button';
       close.textContent = 'Kapat';
+      close.style.cssText = 'min-height:40px;padding:8px 12px;cursor:pointer';
       close.onclick = closeMacroMenu;
-      panel.appendChild(close);
+      actions.append(submit, close);
+      body.append(choices, actions);
+      panel.appendChild(body);
       macroMenu = panel;
       document.body.appendChild(panel);
     } catch (error) {
-      alert('[3.6.28] Makro: ' + error.message);
+      alert('[3.6.29] Makro: ' + error.message);
     } finally {
       macroMenuOpening = false;
     }
