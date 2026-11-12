@@ -1,4 +1,4 @@
-// Form Doldur uygulaması — sürüm 3.6.21
+// Form Doldur uygulaması — sürüm 3.6.22
 (() => {
   'use strict';
   if (!['http:', 'https:'].includes(location.protocol)) return;
@@ -124,7 +124,7 @@
 
   const inspectFields = () => {
     document.getElementById('form-teknik-panel')?.remove();
-    const report = { version: '3.6.21', fields: [], saveButtons: [], choices: [], actions: [], tabs: [], editors: [], diagnosisStructure: [], dischargeStructure: [] };
+    const report = { version: '3.6.22', fields: [], saveButtons: [], choices: [], actions: [], tabs: [], editors: [], diagnosisStructure: [], dischargeStructure: [] };
     for (const { doc, path } of frameDocuments()) {
       const isVisible = element => element.getClientRects().length > 0 &&
         doc.defaultView.getComputedStyle(element).visibility !== 'hidden';
@@ -214,7 +214,7 @@
     panel.id = 'form-teknik-panel';
     panel.style.cssText = 'position:fixed;inset:10% 10%;z-index:2147483647;background:white;color:black;padding:20px;border:2px solid #333;box-shadow:0 4px 20px #0008;font:14px Arial;display:flex;flex-direction:column;gap:12px';
     const heading = document.createElement('strong');
-    heading.textContent = 'Alan tanıma raporu — 3.6.21';
+    heading.textContent = 'Alan tanıma raporu — 3.6.22';
     const note = document.createElement('div');
     note.textContent = 'Yalnızca hedef alanların teknik bilgileri. Alan değerleri ve hasta bilgileri rapora eklenmez. Rapor otomatik gönderilmez.';
     const output = document.createElement('textarea');
@@ -514,7 +514,7 @@
       saves[0].click();
       // Kaydet sonucunu HBYS gösterir; ek bilgi penceresi açma.
     } catch (error) {
-      alert('[3.6.21] ' + (saveClicked ? 'Kaydet işleminin sonucunu ekrandan kontrol et. ' : shortcutName + ' durdu: ') +
+      alert('[3.6.22] ' + (saveClicked ? 'Kaydet işleminin sonucunu ekrandan kontrol et. ' : shortcutName + ' durdu: ') +
         error.message);
     } finally {
       activeFields = null;
@@ -853,7 +853,7 @@
       }
       uniqueAction(root, 'kaydet').click();
     } catch (error) {
-      alert('[3.6.21] Poliklinik: ' + error.message);
+      alert('[3.6.22] Poliklinik: ' + error.message);
     } finally {
       release();
     }
@@ -962,6 +962,51 @@
     }
     throw new Error('Makro Kodu alanına ait etkin Makro Ekle düğmesi bulunamadı.');
   };
+  const typeMacroCode = async (context, code) => {
+    const { doc, field } = context;
+    assertMacroContext(context);
+    field.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+    for (const type of ['mousedown', 'mouseup', 'click']) {
+      field.dispatchEvent(new doc.defaultView.MouseEvent(type, {
+        bubbles: true, cancelable: true, view: doc.defaultView, button: 0,
+        buttons: type === 'mousedown' ? 1 : 0
+      }));
+    }
+    field.focus();
+    await waitUntil(() => {
+      assertMacroContext(context);
+      return doc.activeElement === field;
+    }, 'Makro Kodu alanına odaklanılamadı. Kod yazılmadı.');
+    const setter = Object.getOwnPropertyDescriptor(doc.defaultView.HTMLInputElement.prototype, 'value').set;
+    let typed = '';
+    for (const digit of code) {
+      assertMacroContext(context);
+      if (field.value !== typed) throw new Error('Yazım sırasında Makro Kodu alanı değişti. İşlem durduruldu.');
+      for (const type of ['keydown', 'keypress']) {
+        const accepted = field.dispatchEvent(new doc.defaultView.KeyboardEvent(type, {
+          key: digit, code: 'Digit' + digit, keyCode: 48 + Number(digit),
+          which: 48 + Number(digit), charCode: type === 'keypress' ? 48 + Number(digit) : 0,
+          bubbles: true, cancelable: true
+        }));
+        if (!accepted) throw new Error('HBYS makro kodu tuş girişini kabul etmedi.');
+      }
+      typed += digit;
+      setter.call(field, typed);
+      field.dispatchEvent(new doc.defaultView.Event('input', { bubbles: true }));
+      field.dispatchEvent(new doc.defaultView.KeyboardEvent('keyup', {
+        key: digit, code: 'Digit' + digit, keyCode: 48 + Number(digit),
+        which: 48 + Number(digit), bubbles: true
+      }));
+      await pause(40);
+    }
+    // Ext JS'nin gecikmeli alan değişikliği kontrolünün tamamlanmasına izin ver.
+    await pause(750);
+    assertMacroContext(context);
+    field.dispatchEvent(new doc.defaultView.Event('change', { bubbles: true }));
+    field.blur();
+    await pause(150);
+    assertMacroContext(context);
+  };
   const enterMacro = async (context, item) => {
     if (shortcutBusy) return;
     shortcutBusy = true;
@@ -976,15 +1021,8 @@
       const addButton = macroAddButton(context);
       const previous = macroRows(root, item.code);
       closeMacroMenu();
-      field.focus();
-      assertMacroContext(context);
-      const setter = Object.getOwnPropertyDescriptor(doc.defaultView.HTMLInputElement.prototype, 'value').set;
-      setter.call(field, item.code);
       sent = true;
-      field.dispatchEvent(new doc.defaultView.Event('input', { bubbles: true }));
-      field.dispatchEvent(new doc.defaultView.Event('change', { bubbles: true }));
-      field.blur();
-      assertMacroContext(context);
+      await typeMacroCode(context, item.code);
       // Bazı ekranlar kod değişince kendiliğinden ekleyebilir; tekrar eklemeyi önle.
       const changed = [...macroRows(root, item.code)].some(([row, text]) =>
         !previous.has(row) || previous.get(row) !== text);
@@ -1005,7 +1043,7 @@
         alert('Yatış makrosu listede görüldü. Gözleme alma adımı henüz bağlı değil; Tedavi alanını elle kontrol et.');
       }
     } catch (error) {
-      alert('[3.6.21] Makro: ' + error.message +
+      alert('[3.6.22] Makro: ' + error.message +
         (sent ? ' Kod otomatik yeniden gönderilmedi.' : ' Kod gönderilmedi.'));
     } finally {
       shortcutBusy = false;
@@ -1040,7 +1078,7 @@
       macroMenu = panel;
       document.body.appendChild(panel);
     } catch (error) {
-      alert('[3.6.21] Makro: ' + error.message);
+      alert('[3.6.22] Makro: ' + error.message);
     }
   };
   const isMacroKey = event => event.altKey && !event.ctrlKey && !event.shiftKey && !event.metaKey &&
