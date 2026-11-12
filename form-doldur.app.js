@@ -1,4 +1,4 @@
-// Form Doldur uygulaması — sürüm 3.6.19
+// Form Doldur uygulaması — sürüm 3.6.20
 (() => {
   'use strict';
   if (!['http:', 'https:'].includes(location.protocol)) return;
@@ -124,7 +124,7 @@
 
   const inspectFields = () => {
     document.getElementById('form-teknik-panel')?.remove();
-    const report = { version: '3.6.19', fields: [], saveButtons: [], choices: [], actions: [], tabs: [], editors: [], diagnosisStructure: [], dischargeStructure: [] };
+    const report = { version: '3.6.20', fields: [], saveButtons: [], choices: [], actions: [], tabs: [], editors: [], diagnosisStructure: [], dischargeStructure: [] };
     for (const { doc, path } of frameDocuments()) {
       const isVisible = element => element.getClientRects().length > 0 &&
         doc.defaultView.getComputedStyle(element).visibility !== 'hidden';
@@ -214,7 +214,7 @@
     panel.id = 'form-teknik-panel';
     panel.style.cssText = 'position:fixed;inset:10% 10%;z-index:2147483647;background:white;color:black;padding:20px;border:2px solid #333;box-shadow:0 4px 20px #0008;font:14px Arial;display:flex;flex-direction:column;gap:12px';
     const heading = document.createElement('strong');
-    heading.textContent = 'Alan tanıma raporu — 3.6.19';
+    heading.textContent = 'Alan tanıma raporu — 3.6.20';
     const note = document.createElement('div');
     note.textContent = 'Yalnızca hedef alanların teknik bilgileri. Alan değerleri ve hasta bilgileri rapora eklenmez. Rapor otomatik gönderilmez.';
     const output = document.createElement('textarea');
@@ -514,7 +514,7 @@
       saves[0].click();
       // Kaydet sonucunu HBYS gösterir; ek bilgi penceresi açma.
     } catch (error) {
-      alert('[3.6.19] ' + (saveClicked ? 'Kaydet işleminin sonucunu ekrandan kontrol et. ' : shortcutName + ' durdu: ') +
+      alert('[3.6.20] ' + (saveClicked ? 'Kaydet işleminin sonucunu ekrandan kontrol et. ' : shortcutName + ' durdu: ') +
         error.message);
     } finally {
       activeFields = null;
@@ -853,7 +853,7 @@
       }
       uniqueAction(root, 'kaydet').click();
     } catch (error) {
-      alert('[3.6.19] Poliklinik: ' + error.message);
+      alert('[3.6.20] Poliklinik: ' + error.message);
     } finally {
       release();
     }
@@ -893,6 +893,18 @@
     }
     return [...matches];
   };
+  const macroPatientRows = doc => [...doc.querySelectorAll(
+    '.x-grid-row-selected, .x-grid3-row-selected, .x-grid-item-selected'
+  )].filter(row => {
+    if (!shown(row)) return false;
+    const grid = row.closest('.x-grid, .x-grid-panel');
+    if (!grid) return false;
+    const headers = [...grid.querySelectorAll('.x-column-header-text, [role="columnheader"]')]
+      .map(header => cleanLabel(header.textContent || '').replace(/[\s.:*]/gu, ''));
+    const hasName = headers.some(header =>
+      ['adısoyadı', 'adsoyad', 'adsoyadı', 'adıvesoyadı'].includes(header));
+    return hasName && headers.includes('sevktarihi');
+  });
   const macroContext = () => {
     const contexts = [];
     for (const { doc } of frameDocuments()) {
@@ -910,9 +922,7 @@
     }
     if (contexts.length !== 1) throw new Error('Tek bir Poliklinik Makro Kodu alanı bulunamadı. Teknik rapor gerekli.');
     const context = contexts[0];
-    const selected = [...context.doc.querySelectorAll(
-      '.x-grid-row-selected, .x-grid3-row-selected, .x-grid-item-selected'
-    )].filter(row => shown(row) && !context.root.contains(row));
+    const selected = macroPatientRows(context.doc);
     if (selected.length !== 1) throw new Error('Soldaki hasta listesinden tek hasta seç.');
     context.patientRow = selected[0];
     context.patientSnapshot = selected[0].textContent;
@@ -920,7 +930,9 @@
   };
   const assertMacroContext = context => {
     const { field, anchor, root, patientRow, patientSnapshot } = context;
-    if (!field.isConnected || !anchor.isConnected || !root.isConnected ||
+    const selectedPatients = macroPatientRows(context.doc);
+    if (selectedPatients.length !== 1 || selectedPatients[0] !== patientRow ||
+        !field.isConnected || !anchor.isConnected || !root.isConnected ||
         !patientRow.isConnected || patientRow.textContent !== patientSnapshot ||
         !patientRow.matches('.x-grid-row-selected, .x-grid3-row-selected, .x-grid-item-selected') ||
         !shown(field) || field.disabled || field.readOnly) {
@@ -971,7 +983,7 @@
         alert('Yatış makrosu listede görüldü. Gözleme alma adımı henüz bağlı değil; Tedavi alanını elle kontrol et.');
       }
     } catch (error) {
-      alert('[3.6.19] Makro: ' + error.message +
+      alert('[3.6.20] Makro: ' + error.message +
         (sent ? ' Kod otomatik yeniden gönderilmedi.' : ' Kod gönderilmedi.'));
     } finally {
       shortcutBusy = false;
@@ -1006,7 +1018,7 @@
       macroMenu = panel;
       document.body.appendChild(panel);
     } catch (error) {
-      alert('[3.6.19] Makro: ' + error.message);
+      alert('[3.6.20] Makro: ' + error.message);
     }
   };
   const isMacroKey = event => event.altKey && !event.ctrlKey && !event.shiftKey && !event.metaKey &&
