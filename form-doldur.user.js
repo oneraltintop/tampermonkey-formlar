@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Form Doldur
 // @namespace    local.atv.form
-// @version      3.4.1
+// @version      3.4.2
 // @description  Hasta kayıt ekranında pencere kapatma kodunu GitHub'dan yükler.
 // @match        *://hbys.aydinism.gov.tr/hbys-web/desktop/desktop.html*
 // @updateURL    https://raw.githubusercontent.com/oneraltintop/tampermonkey-formlar/main/form-doldur.user.js
@@ -12,6 +12,7 @@
 // @grant        GM_setValue
 // @grant        GM_registerMenuCommand
 // @connect      api.github.com
+// @connect      127.0.0.1
 // @noframes
 // ==/UserScript==
 
@@ -37,6 +38,35 @@
   );
   const doctorSettingKey = 'form-doldur:duty-doctor';
   const doctorSettings = {
+    getLinkTestConfig: () => ({
+      role: GM_getValue('form-doldur:link-test-role', ''),
+      keyConfigured: /^[a-f0-9]{64}$/u.test(GM_getValue('form-doldur:link-test-key', ''))
+    }),
+    compareLinkFields: data => new Promise((resolve, reject) => {
+      const key = GM_getValue('form-doldur:link-test-key', '');
+      const role = GM_getValue('form-doldur:link-test-role', '');
+      if (!/^[a-f0-9]{64}$/u.test(key) || !['registration', 'outpatient'].includes(role)) {
+        reject(new Error('Bağlantı testi için profil görevi ve yerel anahtar ayarlanmalı.'));
+        return;
+      }
+      GM_xmlhttpRequest({
+        method: 'POST', url: 'http://127.0.0.1:8876/compare',
+        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + key },
+        data: JSON.stringify({ role, client: data.client, tc: data.tc, encounter: data.encounter }),
+        timeout: 4000, anonymous: true,
+        onload: response => {
+          try {
+            if (response.status !== 200) throw new Error(response.status === 401 ?
+              'Yerel bağlantı anahtarı uyuşmuyor.' : 'Yerel program isteği kabul etmedi.');
+            const value = JSON.parse(response.responseText);
+            if (value.mode !== 'snapshot_only') throw new Error('Beklenen test programı yanıtı alınamadı.');
+            resolve(value);
+          } catch (error) { reject(error); }
+        },
+        onerror: () => reject(new Error('Yerel programla bağlantı kurulamadı. BASLAT dosyası açık mı?')),
+        ontimeout: () => reject(new Error('Yerel program yanıt vermedi.'))
+      });
+    }),
     getDutyDoctor: () => {
       const stored = GM_getValue(doctorSettingKey, 'Sevgi Sever');
       if (typeof stored !== 'string' || /[\r\n]/u.test(stored)) {
@@ -60,6 +90,21 @@
     GM_setValue(doctorSettingKey, name);
     alert('Nöbetçi doktor: ' + name + '. Alt+1, Alt+2 ve Alt+3 bu doktoru kullanacak. Sayfayı yenilemene gerek yok.');
   });
+
+  GM_registerMenuCommand('Bağlantı testi: yerel anahtarı gir', () => {
+    const value = prompt('BASLAT penceresindeki 64 karakterlik yerel anahtarı yapıştır. Buraya hasta bilgisi girme.');
+    if (value === null) return;
+    const key = value.trim();
+    if (!/^[a-f0-9]{64}$/u.test(key)) { alert('Yerel anahtar geçersiz. Eski ayar korundu.'); return; }
+    GM_setValue('form-doldur:link-test-key', key);
+    alert('Yerel test anahtarı kaydedildi. Sayfayı yenilemene gerek yok.');
+  });
+  for (const [role, label] of [['registration', 'Hasta Kabul'], ['outpatient', 'Poliklinik']]) {
+    GM_registerMenuCommand('Bağlantı testi: bu profil ' + label, () => {
+      GM_setValue('form-doldur:link-test-role', role);
+      alert('Bu profil ' + label + ' olarak ayarlandı. Ctrl+Alt+1 yalnızca eşleştirme testi yapacak.');
+    });
+  }
 
   if (!enabled) return;
   if (document.getElementById('a101-form-doldur') ||
@@ -132,7 +177,7 @@
               'Bu sayfa için form henüz hazırlanmadı');
             return;
           }
-          button.title = 'Yükleyici 3.4.1 · Uygulama ' + version[1] +
+          button.title = 'Yükleyici 3.4.2 · Uygulama ' + version[1] +
             ' · ' + ((Date.now() - start) / 1000).toFixed(1) + ' sn';
           status.remove();
         } catch (error) {
