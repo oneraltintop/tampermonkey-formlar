@@ -1,4 +1,4 @@
-// Form Doldur uygulaması — sürüm 3.6.31
+// Form Doldur uygulaması — sürüm 3.6.32
 (() => {
   'use strict';
   if (!['http:', 'https:'].includes(location.protocol)) return;
@@ -175,7 +175,7 @@
 
   const inspectFields = (linkOnly = false) => {
     document.getElementById('form-teknik-panel')?.remove();
-    const report = { version: '3.6.31', fields: [], saveButtons: [], choices: [], actions: [], tabs: [], editors: [], diagnosisStructure: [], dischargeStructure: [], supplyStructure: [], supplyChoices: [], headerBindings: [], linkProbe: linkOnly };
+    const report = { version: '3.6.32', fields: [], saveButtons: [], choices: [], actions: [], tabs: [], editors: [], diagnosisStructure: [], dischargeStructure: [], supplyStructure: [], supplyChoices: [], headerBindings: [], linkProbe: linkOnly };
     for (const { doc, path } of frameDocuments()) {
       report.headerBindings.push(...collectLinkBindings(doc, path));
       const isVisible = element => element.getClientRects().length > 0 &&
@@ -279,7 +279,7 @@
     panel.id = 'form-teknik-panel';
     panel.style.cssText = 'position:fixed;inset:10% 10%;z-index:2147483647;background:white;color:black;padding:20px;border:2px solid #333;box-shadow:0 4px 20px #0008;font:14px Arial;display:flex;flex-direction:column;gap:12px';
     const heading = document.createElement('strong');
-    heading.textContent = linkOnly ? 'Başvuru eşleştirme raporu — 3.6.31' : 'Alan tanıma raporu — 3.6.31';
+    heading.textContent = linkOnly ? 'Başvuru eşleştirme raporu — 3.6.32' : 'Alan tanıma raporu — 3.6.32';
     const note = document.createElement('div');
     note.textContent = linkOnly ? 'Bağlantı hazırlığı: yalnızca alan yapısı çıkarıldı. TC/başvuru değerleri rapora eklenmez. İki profil henüz bağlı değil; işlem veya kayıt yapılmadı.' : 'Yalnızca hedef alanların teknik bilgileri. Alan değerleri ve hasta bilgileri rapora eklenmez. Rapor otomatik gönderilmez.';
     const output = document.createElement('textarea');
@@ -579,7 +579,7 @@
       saves[0].click();
       // Kaydet sonucunu HBYS gösterir; ek bilgi penceresi açma.
     } catch (error) {
-      alert('[3.6.31] ' + (saveClicked ? 'Kaydet işleminin sonucunu ekrandan kontrol et. ' : shortcutName + ' durdu: ') +
+      alert('[3.6.32] ' + (saveClicked ? 'Kaydet işleminin sonucunu ekrandan kontrol et. ' : shortcutName + ' durdu: ') +
         error.message);
     } finally {
       activeFields = null;
@@ -918,7 +918,7 @@
       }
       uniqueAction(root, 'kaydet').click();
     } catch (error) {
-      alert('[3.6.31] Poliklinik: ' + error.message);
+      alert('[3.6.32] Poliklinik: ' + error.message);
     } finally {
       release();
     }
@@ -1145,7 +1145,7 @@
       }
       return true;
     } catch (error) {
-      alert('[3.6.31] Makro: ' + error.message +
+      alert('[3.6.32] Makro: ' + error.message +
         (sent ? ' Kod otomatik yeniden gönderilmedi.' : ' Kod gönderilmedi.'));
       return false;
     } finally {
@@ -1242,7 +1242,7 @@
         completed++;
       }
     } catch (error) {
-      alert('[3.6.31] Makro: ' + error.message);
+      alert('[3.6.32] Makro: ' + error.message);
     } finally {
       shortcutBusy = false;
       macroBatchActive = false;
@@ -1315,13 +1315,87 @@
       macroMenu = panel;
       document.body.appendChild(panel);
     } catch (error) {
-      alert('[3.6.31] Makro: ' + error.message);
+      alert('[3.6.32] Makro: ' + error.message);
     } finally {
       macroMenuOpening = false;
     }
   };
   const isMacroKey = event => event.altKey && !event.ctrlKey && !event.shiftKey && !event.metaKey &&
     (['Digit5', 'Numpad5'].includes(event.code) || event.key === '5' || event.keyCode === 53 || event.keyCode === 101);
+
+  let linkComparisonBusy = false;
+  let linkComparisonClient = null;
+  const resolveLinkTestFields = role => {
+    const found = [];
+    for (const { doc } of frameDocuments()) {
+      const inputs = name => [...doc.querySelectorAll('input[name="' + name + '"]')].filter(shown);
+      if (role === 'registration') {
+        if (!['acilGelisSekli', 'triaj', 'birim', 'personel'].every(name =>
+          inputs(name).filter(element => !element.disabled).length === 1)) continue;
+      } else {
+        if (doc.querySelectorAll('input[name="pol.triaj"]').length !== 1 ||
+            outpatientTabs(doc, 'doktor notları').length !== 1) continue;
+      }
+      const patientFields = inputs('tcKimlikNo')
+        .filter(element => role === 'registration' ? !element.readOnly : element.readOnly);
+      const encounterFields = inputs('kodu').filter(element => element.readOnly);
+      if (patientFields.length !== 1 || encounterFields.length !== 1) continue;
+      found.push({ doc, patient: patientFields[0], encounterField: encounterFields[0] });
+    }
+    if (found.length !== 1) {
+      throw new Error('Bu profil için tek bir gerçek hasta ve İşlem No alanı bulunamadı. Doğru ekranı aç.');
+    }
+    const fields = found[0];
+    const tc = fields.patient.value.trim();
+    const encounter = fields.encounterField.value.trim();
+    if (!/^[0-9]{11}$/u.test(tc) || !/^[0-9]{1,20}$/u.test(encounter)) {
+      throw new Error('Kimlik No ve İşlem No dolu olmalı. Bu test yeni kayıt oluşturmaz.');
+    }
+    return { ...fields, tc, encounter };
+  };
+  const runProfilePairTest = async () => {
+    if (linkComparisonBusy || shortcutBusy || outpatientRunning || macroBatchActive) return;
+    linkComparisonBusy = true;
+    try {
+      const api = typeof formDoldurSettings === 'object' ? formDoldurSettings : null;
+      if (!api || typeof api.getLinkTestConfig !== 'function' ||
+          typeof api.compareLinkFields !== 'function') {
+        throw new Error('Bu test için Form Doldur yükleyicisini 3.4.2 sürümüne güncelle.');
+      }
+      const config = api.getLinkTestConfig();
+      if (!['registration', 'outpatient'].includes(config.role) || !config.keyConfigured) {
+        throw new Error('Tampermonkey menüsünden bu profilin görevini ve yerel test anahtarını ayarla.');
+      }
+      const snapshot = resolveLinkTestFields(config.role);
+      if (!linkComparisonClient) {
+        linkComparisonClient = [...crypto.getRandomValues(new Uint8Array(16))]
+          .map(value => value.toString(16).padStart(2, '0')).join('');
+      }
+      // Hasta değerleri yalnızca bu bilgisayardaki doğrulanmış loopback uç noktasına gider.
+      const response = await api.compareLinkFields({
+        client: linkComparisonClient, tc: snapshot.tc, encounter: snapshot.encounter
+      });
+      if (!snapshot.patient.isConnected || !snapshot.encounterField.isConnected ||
+          snapshot.patient.value.trim() !== snapshot.tc ||
+          snapshot.encounterField.value.trim() !== snapshot.encounter) {
+        throw new Error('Test sırasında bu ekrandaki hasta veya başvuru değişti. Sonuç geçersiz; iki tarafta yeniden test et.');
+      }
+      const messages = {
+        waiting: 'Bu profilin örneği alındı. Şimdi diğer Chrome profilinde Ctrl+Alt+1 yap.',
+        matching: 'İki profilden son 60 saniyede gönderilen TC ve İşlem No örnekleri eşleşiyor.',
+        different_patient: 'İki profilde gönderilen hasta örnekleri farklı. İşlem başlatılmadı.',
+        different_encounter: 'Hasta aynı, fakat İşlem No örnekleri farklı. İşlem başlatılmadı.',
+        ambiguous: 'Aynı görevde birden fazla pencere örneği var. Fazla pencereleri kapatıp 60 saniye bekle.'
+      };
+      const message = messages[response.status];
+      if (!message) throw new Error('Bilinmeyen yerel test yanıtı.');
+      alert(message + '\nBu yalnızca gönderilen örneklerin karşılaştırmasıdır; canlı hasta takibi veya kayıt yapılmaz.');
+    } catch (error) {
+      alert('[3.6.32] Profil testi: ' + error.message);
+    } finally {
+      linkComparisonBusy = false;
+    }
+  };
 
   const shortcutNumber = event => {
     if (!event.altKey || event.shiftKey || event.ctrlKey || event.metaKey) return 0;
@@ -1359,7 +1433,7 @@
           if (!event.repeat && !pressedShortcuts.has('link-probe') &&
               !shortcutBusy && !outpatientRunning && !macroBatchActive) {
             pressedShortcuts.add('link-probe');
-            inspectFields(true);
+            void runProfilePairTest();
           }
           return;
         }
