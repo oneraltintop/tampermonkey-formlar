@@ -1,4 +1,4 @@
-// Form Doldur uygulaması — sürüm 3.6.32
+// Form Doldur uygulaması — sürüm 3.6.33
 (() => {
   'use strict';
   if (!['http:', 'https:'].includes(location.protocol)) return;
@@ -175,7 +175,7 @@
 
   const inspectFields = (linkOnly = false) => {
     document.getElementById('form-teknik-panel')?.remove();
-    const report = { version: '3.6.32', fields: [], saveButtons: [], choices: [], actions: [], tabs: [], editors: [], diagnosisStructure: [], dischargeStructure: [], supplyStructure: [], supplyChoices: [], headerBindings: [], linkProbe: linkOnly };
+    const report = { version: '3.6.33', fields: [], saveButtons: [], choices: [], actions: [], tabs: [], editors: [], diagnosisStructure: [], dischargeStructure: [], supplyStructure: [], supplyChoices: [], headerBindings: [], linkProbe: linkOnly };
     for (const { doc, path } of frameDocuments()) {
       report.headerBindings.push(...collectLinkBindings(doc, path));
       const isVisible = element => element.getClientRects().length > 0 &&
@@ -279,7 +279,7 @@
     panel.id = 'form-teknik-panel';
     panel.style.cssText = 'position:fixed;inset:10% 10%;z-index:2147483647;background:white;color:black;padding:20px;border:2px solid #333;box-shadow:0 4px 20px #0008;font:14px Arial;display:flex;flex-direction:column;gap:12px';
     const heading = document.createElement('strong');
-    heading.textContent = linkOnly ? 'Başvuru eşleştirme raporu — 3.6.32' : 'Alan tanıma raporu — 3.6.32';
+    heading.textContent = linkOnly ? 'Başvuru eşleştirme raporu — 3.6.33' : 'Alan tanıma raporu — 3.6.33';
     const note = document.createElement('div');
     note.textContent = linkOnly ? 'Bağlantı hazırlığı: yalnızca alan yapısı çıkarıldı. TC/başvuru değerleri rapora eklenmez. İki profil henüz bağlı değil; işlem veya kayıt yapılmadı.' : 'Yalnızca hedef alanların teknik bilgileri. Alan değerleri ve hasta bilgileri rapora eklenmez. Rapor otomatik gönderilmez.';
     const output = document.createElement('textarea');
@@ -579,7 +579,7 @@
       saves[0].click();
       // Kaydet sonucunu HBYS gösterir; ek bilgi penceresi açma.
     } catch (error) {
-      alert('[3.6.32] ' + (saveClicked ? 'Kaydet işleminin sonucunu ekrandan kontrol et. ' : shortcutName + ' durdu: ') +
+      alert('[3.6.33] ' + (saveClicked ? 'Kaydet işleminin sonucunu ekrandan kontrol et. ' : shortcutName + ' durdu: ') +
         error.message);
     } finally {
       activeFields = null;
@@ -918,7 +918,7 @@
       }
       uniqueAction(root, 'kaydet').click();
     } catch (error) {
-      alert('[3.6.32] Poliklinik: ' + error.message);
+      alert('[3.6.33] Poliklinik: ' + error.message);
     } finally {
       release();
     }
@@ -935,9 +935,11 @@
     { code: '510120', label: 'Yatış' }
   ];
   let macroMenu = null;
+  let macroMenuKeys = null;
   const closeMacroMenu = () => {
     macroMenu?.remove();
     macroMenu = null;
+    macroMenuKeys = null;
   };
   const macroCodeFields = (root, doc) => {
     const matches = new Set();
@@ -1145,7 +1147,7 @@
       }
       return true;
     } catch (error) {
-      alert('[3.6.32] Makro: ' + error.message +
+      alert('[3.6.33] Makro: ' + error.message +
         (sent ? ' Kod otomatik yeniden gönderilmedi.' : ' Kod gönderilmedi.'));
       return false;
     } finally {
@@ -1242,7 +1244,7 @@
         completed++;
       }
     } catch (error) {
-      alert('[3.6.32] Makro: ' + error.message);
+      alert('[3.6.33] Makro: ' + error.message);
     } finally {
       shortcutBusy = false;
       macroBatchActive = false;
@@ -1252,6 +1254,28 @@
       setTimeout(() => progress.remove(), 5000);
     }
   };
+  const handleMacroSelectionKey = event => {
+    if (!macroMenu?.isConnected || !macroMenuKeys ||
+        event.altKey || event.ctrlKey || event.shiftKey || event.metaKey) return false;
+    const digit = /^[0-9]$/u.test(event.key || '') ? event.key :
+      /^(?:Digit|Numpad)([0-9])$/u.exec(event.code || '')?.[1] ??
+      (event.keyCode >= 48 && event.keyCode <= 57 ? String(event.keyCode - 48) :
+       event.keyCode >= 96 && event.keyCode <= 105 ? String(event.keyCode - 96) : null);
+    const enter = event.key === 'Enter' || ['Enter', 'NumpadEnter'].includes(event.code);
+    if (digit === null && !enter) return false;
+    event.preventDefault();
+    event.stopPropagation();
+    const key = enter ? 'macro-menu-enter' : 'macro-menu-' + digit;
+    if (event.repeat || pressedShortcuts.has(key)) return true;
+    pressedShortcuts.add(key);
+    if (enter) {
+      if (!macroMenuKeys.submit.disabled) macroMenuKeys.submit.click();
+    } else {
+      macroMenuKeys.buttons.get(digit)?.click();
+    }
+    return true;
+  };
+
   let macroMenuOpening = false;
   const toggleMacroMenu = async () => {
     if (macroMenu) { closeMacroMenu(); return; }
@@ -1266,7 +1290,7 @@
       panel.id = 'poliklinik-makro-menu';
       panel.style.cssText = 'position:fixed;left:12px;top:20%;z-index:2147483647;background:white;color:#111;border:2px solid #285c8c;border-radius:8px;padding:12px;font:14px Arial;box-shadow:0 3px 14px #0005;display:flex;flex-direction:column;gap:6px;max-height:75vh;max-width:calc(100vw - 24px);overflow:auto;box-sizing:border-box';
       const heading = document.createElement('strong');
-      heading.textContent = 'Makrolar · Alt+5 / Esc ile kapat';
+      heading.textContent = 'Makrolar · Rakam: seç · Enter: ekle · Esc: kapat';
       panel.appendChild(heading);
       const selectedCodes = new Set();
       const body = document.createElement('div');
@@ -1280,10 +1304,14 @@
       submit.textContent = 'Ekle (0)';
       submit.disabled = true;
       submit.style.cssText = 'min-width:88px;min-height:48px;padding:10px 14px;font:bold 15px Arial;cursor:pointer';
-      for (const item of macroItems) {
+      const numberButtons = new Map();
+      for (const [index, item] of macroItems.entries()) {
         const button = document.createElement('button');
         button.type = 'button';
-        button.textContent = item.code + ' · ' + item.label;
+        const number = String(index + 1);
+        button.textContent = number + ' · ' + item.label + ' (' + item.code + ')';
+        button.setAttribute('aria-keyshortcuts', number);
+        numberButtons.set(number, button);
         button.setAttribute('aria-pressed', 'false');
         button.style.cssText = 'min-height:42px;padding:10px 14px;border:2px solid #c4ced8;border-radius:6px;background:#f4f6f8;color:#111;font:14px Arial;text-align:left;cursor:pointer;touch-action:manipulation';
         button.addEventListener('click', () => {
@@ -1312,10 +1340,11 @@
       actions.append(submit, close);
       body.append(choices, actions);
       panel.appendChild(body);
+      macroMenuKeys = { buttons: numberButtons, submit };
       macroMenu = panel;
       document.body.appendChild(panel);
     } catch (error) {
-      alert('[3.6.32] Makro: ' + error.message);
+      alert('[3.6.33] Makro: ' + error.message);
     } finally {
       macroMenuOpening = false;
     }
@@ -1391,7 +1420,7 @@
       if (!message) throw new Error('Bilinmeyen yerel test yanıtı.');
       alert(message + '\nBu yalnızca gönderilen örneklerin karşılaştırmasıdır; canlı hasta takibi veya kayıt yapılmaz.');
     } catch (error) {
-      alert('[3.6.32] Profil testi: ' + error.message);
+      alert('[3.6.33] Profil testi: ' + error.message);
     } finally {
       linkComparisonBusy = false;
     }
@@ -1427,6 +1456,7 @@
       }, true);
       view.addEventListener('keydown', event => {
         ctrlTap.keydown(event);
+        if (handleMacroSelectionKey(event)) return;
         if (isLinkProbeKey(event)) {
           event.preventDefault();
           event.stopPropagation();
