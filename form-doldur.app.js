@@ -1,4 +1,4 @@
-// Form Doldur uygulaması — sürüm 3.6.30
+// Form Doldur uygulaması — sürüm 3.6.31
 (() => {
   'use strict';
   if (!['http:', 'https:'].includes(location.protocol)) return;
@@ -125,10 +125,59 @@
   };
   setInterval(captureDischargePopups, 400);
 
-  const inspectFields = () => {
+  const collectLinkBindings = (doc, path) => {
+    const bindings = [];
+    const seen = new Map();
+    const aliases = new Map([
+      ['kimlikno', 'kimlik-no'], ['tckimlikno', 'kimlik-no'],
+      ['kimliknumarası', 'kimlik-no'], ['işlemno', 'islem-no'],
+      ['işlemnumarası', 'islem-no'], ['başvuruno', 'basvuru-no'],
+      ['başvurunumarası', 'basvuru-no'], ['protokolno', 'protokol-no'],
+      ['protokolnumarası', 'protokol-no']
+    ]);
+    const visible = element => element?.isConnected && element.getClientRects().length > 0 &&
+      doc.defaultView.getComputedStyle(element).visibility !== 'hidden';
+    const add = (label, element, relation) => {
+      if (!visible(element)) return;
+      if (!seen.has(label)) seen.set(label, new Set());
+      if (seen.get(label).has(element)) return;
+      seen.get(label).add(element);
+      bindings.push({
+        frame: path, label, relation, ...describe(element),
+        readonly: element.readOnly === true,
+        ancestors: technicalAncestors(element)
+      });
+    };
+    for (const label of doc.querySelectorAll('label, .x-form-item-label, td, th, span')) {
+      if (!visible(label)) continue;
+      const normalized = cleanLabel(label.textContent || '').replace(/[\s.:*]/gu, '');
+      const target = aliases.get(normalized);
+      if (!target) continue;
+      const linked = label.getAttribute('for');
+      if (linked) add(target, doc.getElementById(linked), 'label-for');
+      const item = label.closest('.x-form-item, .x-field');
+      item?.querySelectorAll('input:not([type="hidden"]), .x-form-display-field')
+        .forEach(element => add(target, element, 'form-item'));
+      const cell = label.matches('td, th') ? label : label.closest('td, th');
+      const sibling = cell?.nextElementSibling || label.nextElementSibling;
+      if (sibling) {
+        const elements = [...sibling.querySelectorAll('input:not([type="hidden"]), .x-form-display-field')];
+        if (elements.length) elements.forEach(element => add(target, element, 'adjacent-cell'));
+        else add(target, sibling, 'adjacent-text');
+      }
+    }
+    return bindings;
+  };
+  const isLinkProbeKey = event => event.ctrlKey && event.altKey &&
+    !event.shiftKey && !event.metaKey && !event.getModifierState?.('AltGraph') &&
+    (['Digit1', 'Numpad1'].includes(event.code) || event.key === '1' ||
+      event.keyCode === 49 || event.keyCode === 97);
+
+  const inspectFields = (linkOnly = false) => {
     document.getElementById('form-teknik-panel')?.remove();
-    const report = { version: '3.6.30', fields: [], saveButtons: [], choices: [], actions: [], tabs: [], editors: [], diagnosisStructure: [], dischargeStructure: [], supplyStructure: [], supplyChoices: [] };
+    const report = { version: '3.6.31', fields: [], saveButtons: [], choices: [], actions: [], tabs: [], editors: [], diagnosisStructure: [], dischargeStructure: [], supplyStructure: [], supplyChoices: [], headerBindings: [], linkProbe: linkOnly };
     for (const { doc, path } of frameDocuments()) {
+      report.headerBindings.push(...collectLinkBindings(doc, path));
       const isVisible = element => element.getClientRects().length > 0 &&
         doc.defaultView.getComputedStyle(element).visibility !== 'hidden';
       const recorded = new Set();
@@ -230,9 +279,9 @@
     panel.id = 'form-teknik-panel';
     panel.style.cssText = 'position:fixed;inset:10% 10%;z-index:2147483647;background:white;color:black;padding:20px;border:2px solid #333;box-shadow:0 4px 20px #0008;font:14px Arial;display:flex;flex-direction:column;gap:12px';
     const heading = document.createElement('strong');
-    heading.textContent = 'Alan tanıma raporu — 3.6.30';
+    heading.textContent = linkOnly ? 'Başvuru eşleştirme raporu — 3.6.31' : 'Alan tanıma raporu — 3.6.31';
     const note = document.createElement('div');
-    note.textContent = 'Yalnızca hedef alanların teknik bilgileri. Alan değerleri ve hasta bilgileri rapora eklenmez. Rapor otomatik gönderilmez.';
+    note.textContent = linkOnly ? 'Bağlantı hazırlığı: yalnızca alan yapısı çıkarıldı. TC/başvuru değerleri rapora eklenmez. İki profil henüz bağlı değil; işlem veya kayıt yapılmadı.' : 'Yalnızca hedef alanların teknik bilgileri. Alan değerleri ve hasta bilgileri rapora eklenmez. Rapor otomatik gönderilmez.';
     const output = document.createElement('textarea');
     output.readOnly = true;
     output.setAttribute('aria-label', 'Teknik rapor');
@@ -530,7 +579,7 @@
       saves[0].click();
       // Kaydet sonucunu HBYS gösterir; ek bilgi penceresi açma.
     } catch (error) {
-      alert('[3.6.30] ' + (saveClicked ? 'Kaydet işleminin sonucunu ekrandan kontrol et. ' : shortcutName + ' durdu: ') +
+      alert('[3.6.31] ' + (saveClicked ? 'Kaydet işleminin sonucunu ekrandan kontrol et. ' : shortcutName + ' durdu: ') +
         error.message);
     } finally {
       activeFields = null;
@@ -869,7 +918,7 @@
       }
       uniqueAction(root, 'kaydet').click();
     } catch (error) {
-      alert('[3.6.30] Poliklinik: ' + error.message);
+      alert('[3.6.31] Poliklinik: ' + error.message);
     } finally {
       release();
     }
@@ -1096,7 +1145,7 @@
       }
       return true;
     } catch (error) {
-      alert('[3.6.30] Makro: ' + error.message +
+      alert('[3.6.31] Makro: ' + error.message +
         (sent ? ' Kod otomatik yeniden gönderilmedi.' : ' Kod gönderilmedi.'));
       return false;
     } finally {
@@ -1193,7 +1242,7 @@
         completed++;
       }
     } catch (error) {
-      alert('[3.6.30] Makro: ' + error.message);
+      alert('[3.6.31] Makro: ' + error.message);
     } finally {
       shortcutBusy = false;
       macroBatchActive = false;
@@ -1266,7 +1315,7 @@
       macroMenu = panel;
       document.body.appendChild(panel);
     } catch (error) {
-      alert('[3.6.30] Makro: ' + error.message);
+      alert('[3.6.31] Makro: ' + error.message);
     } finally {
       macroMenuOpening = false;
     }
@@ -1304,6 +1353,16 @@
       }, true);
       view.addEventListener('keydown', event => {
         ctrlTap.keydown(event);
+        if (isLinkProbeKey(event)) {
+          event.preventDefault();
+          event.stopPropagation();
+          if (!event.repeat && !pressedShortcuts.has('link-probe') &&
+              !shortcutBusy && !outpatientRunning && !macroBatchActive) {
+            pressedShortcuts.add('link-probe');
+            inspectFields(true);
+          }
+          return;
+        }
         if ((event.key === 'Escape' || event.code === 'Escape') && macroBatchActive) {
           event.preventDefault();
           event.stopPropagation();
