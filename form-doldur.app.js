@@ -1,4 +1,4 @@
-// Form Doldur uygulaması — sürüm 3.6.35
+// Form Doldur uygulaması — sürüm 3.6.36
 (() => {
   'use strict';
   if (!['http:', 'https:'].includes(location.protocol)) return;
@@ -173,11 +173,58 @@
     (['Digit1', 'Numpad1'].includes(event.code) || event.key === '1' ||
       event.keyCode === 49 || event.keyCode === 97);
 
+  const collectDiagnosisEditorStructure = (doc, path) => {
+    const result = [];
+    const visible = element => element?.getClientRects().length > 0 &&
+      doc.defaultView.getComputedStyle(element).visibility !== 'hidden';
+    const compact = text => normalize(text || '').replace(/[\s.:*]/gu, '');
+    const seen = new Set();
+    for (const grid of doc.querySelectorAll('.x-grid, .x-grid-panel')) {
+      if (!visible(grid)) continue;
+      const headers = [...grid.querySelectorAll('.x-column-header-text, [role="columnheader"]')];
+      const labels = headers.map(header => compact(header.textContent));
+      if (!labels.some(label => ['kodu', 'kod'].includes(label)) ||
+          !labels.some(label => ['tanıadı', 'tanı'].includes(label))) continue;
+      const controls = new Set();
+      let parent = grid;
+      for (let depth = 0; parent && depth < 5; depth++, parent = parent.parentElement) {
+        for (const control of parent.querySelectorAll('a[role="button"], button, .x-btn, .x-tool, img')) {
+          if (visible(control)) controls.add(control);
+        }
+        if (parent.matches('.x-window')) break;
+      }
+      const candidates = [...controls].slice(0, 50).map(control => {
+        const tooltip = compact(control.getAttribute('aria-label') || control.getAttribute('data-qtip') ||
+          control.getAttribute('title') || '');
+        const known = ['sil', 'tanısil', 'kaldır', 'delete', 'remove'].includes(tooltip) ? tooltip : null;
+        return {
+          ...describe(control), knownAction: known,
+          icons: [...control.querySelectorAll('.x-btn-icon-el, .x-tool-img, img')].map(describe).slice(0, 4),
+          ancestors: technicalAncestors(control)
+        };
+      });
+      if (seen.has(grid)) continue;
+      seen.add(grid);
+      result.push({
+        frame: path, grid: describe(grid), ancestors: technicalAncestors(grid),
+        headers: headers.map((header, index) => ({
+          label: ['kodu', 'kod', 'tanıadı', 'tanı', 'adet', 'miktar', 'tanıtipi'].includes(labels[index])
+            ? labels[index] : 'diğer-sütun',
+          ...describe(header)
+        })),
+        selectedRows: [...grid.querySelectorAll('.x-grid-row-selected, .x-grid-item-selected')]
+          .filter(visible).map(row => ({ ...describe(row), ancestors: technicalAncestors(row) })),
+        controls: candidates
+      });
+    }
+    return result;
+  };
   const inspectFields = (linkOnly = false) => {
     document.getElementById('form-teknik-panel')?.remove();
-    const report = { version: '3.6.35', fields: [], saveButtons: [], choices: [], actions: [], tabs: [], editors: [], diagnosisStructure: [], dischargeStructure: [], supplyStructure: [], supplyChoices: [], headerBindings: [], linkProbe: linkOnly };
+    const report = { version: '3.6.36', fields: [], saveButtons: [], choices: [], actions: [], tabs: [], editors: [], diagnosisStructure: [], dischargeStructure: [], supplyStructure: [], supplyChoices: [], headerBindings: [], diagnosisEditorStructure: [], linkProbe: linkOnly };
     for (const { doc, path } of frameDocuments()) {
       report.headerBindings.push(...collectLinkBindings(doc, path));
+      report.diagnosisEditorStructure.push(...collectDiagnosisEditorStructure(doc, path));
       const isVisible = element => element.getClientRects().length > 0 &&
         doc.defaultView.getComputedStyle(element).visibility !== 'hidden';
       const recorded = new Set();
@@ -213,7 +260,7 @@
       for (const action of doc.querySelectorAll('button, a[role="button"], .x-btn')) {
         if (!isVisible(action)) continue;
         const label = cleanLabel(action.textContent || action.getAttribute('aria-label') || '');
-        if (/^(kabul|hasta kabul|ekle|tanı ekle|tamam|kaydet|ilaç ekle|sarf ekle|malzeme ekle|toplu ekle|ekle ve kapat)(\s*[[(]f\d+[)\]])?$/u.test(label)) {
+        if (/^(kabul|hasta kabul|ekle|tanı ekle|tamam|kaydet|ilaç ekle|sarf ekle|malzeme ekle|toplu ekle|ekle ve kapat|sil|tanı sil|kaldır)(\s*[[(]f\d+[)\]])?$/u.test(label)) {
           report.actions.push({ frame: path, label, ...describe(action) });
           if (label.startsWith('tamam')) {
             report.diagnosisStructure.push({
@@ -279,7 +326,7 @@
     panel.id = 'form-teknik-panel';
     panel.style.cssText = 'position:fixed;inset:10% 10%;z-index:2147483647;background:white;color:black;padding:20px;border:2px solid #333;box-shadow:0 4px 20px #0008;font:14px Arial;display:flex;flex-direction:column;gap:12px';
     const heading = document.createElement('strong');
-    heading.textContent = linkOnly ? 'Başvuru eşleştirme raporu — 3.6.35' : 'Alan tanıma raporu — 3.6.35';
+    heading.textContent = linkOnly ? 'Başvuru eşleştirme raporu — 3.6.36' : 'Alan tanıma raporu — 3.6.36';
     const note = document.createElement('div');
     note.textContent = linkOnly ? 'Bağlantı hazırlığı: yalnızca alan yapısı çıkarıldı. TC/başvuru değerleri rapora eklenmez. İki profil henüz bağlı değil; işlem veya kayıt yapılmadı.' : 'Yalnızca hedef alanların teknik bilgileri. Alan değerleri ve hasta bilgileri rapora eklenmez. Rapor otomatik gönderilmez.';
     const output = document.createElement('textarea');
@@ -579,7 +626,7 @@
       saves[0].click();
       // Kaydet sonucunu HBYS gösterir; ek bilgi penceresi açma.
     } catch (error) {
-      alert('[3.6.35] ' + (saveClicked ? 'Kaydet işleminin sonucunu ekrandan kontrol et. ' : shortcutName + ' durdu: ') +
+      alert('[3.6.36] ' + (saveClicked ? 'Kaydet işleminin sonucunu ekrandan kontrol et. ' : shortcutName + ' durdu: ') +
         error.message);
     } finally {
       activeFields = null;
@@ -975,7 +1022,7 @@
       }
       uniqueAction(root, 'kaydet').click();
     } catch (error) {
-      alert('[3.6.35] Poliklinik: ' + error.message);
+      alert('[3.6.36] Poliklinik: ' + error.message);
     } finally {
       release();
     }
@@ -1277,7 +1324,7 @@
       }
       return true;
     } catch (error) {
-      alert('[3.6.35] Makro: ' + error.message +
+      alert('[3.6.36] Makro: ' + error.message +
         (sent ? ' Kod otomatik yeniden gönderilmedi.' : ' Kod gönderilmedi.'));
       return false;
     } finally {
@@ -1374,7 +1421,7 @@
         completed++;
       }
     } catch (error) {
-      alert('[3.6.35] Makro: ' + error.message);
+      alert('[3.6.36] Makro: ' + error.message);
     } finally {
       shortcutBusy = false;
       macroBatchActive = false;
@@ -1474,7 +1521,7 @@
       macroMenu = panel;
       document.body.appendChild(panel);
     } catch (error) {
-      alert('[3.6.35] Makro: ' + error.message);
+      alert('[3.6.36] Makro: ' + error.message);
     } finally {
       macroMenuOpening = false;
     }
@@ -1550,7 +1597,7 @@
       if (!message) throw new Error('Bilinmeyen yerel test yanıtı.');
       alert(message + '\nBu yalnızca gönderilen örneklerin karşılaştırmasıdır; canlı hasta takibi veya kayıt yapılmaz.');
     } catch (error) {
-      alert('[3.6.35] Profil testi: ' + error.message);
+      alert('[3.6.36] Profil testi: ' + error.message);
     } finally {
       linkComparisonBusy = false;
     }
