@@ -1,4 +1,4 @@
-// Form Doldur uygulaması — sürüm 3.6.42
+// Form Doldur uygulaması — sürüm 3.6.43
 (() => {
   'use strict';
   if (!['http:', 'https:'].includes(location.protocol)) return;
@@ -221,7 +221,7 @@
   };
   const inspectFields = (linkOnly = false) => {
     document.getElementById('form-teknik-panel')?.remove();
-    const report = { version: '3.6.42', fields: [], saveButtons: [], choices: [], actions: [], tabs: [], editors: [], diagnosisStructure: [], dischargeStructure: [], supplyStructure: [], supplyChoices: [], headerBindings: [], diagnosisEditorStructure: [], linkProbe: linkOnly };
+    const report = { version: '3.6.43', fields: [], saveButtons: [], choices: [], actions: [], tabs: [], editors: [], diagnosisStructure: [], dischargeStructure: [], supplyStructure: [], supplyChoices: [], headerBindings: [], diagnosisEditorStructure: [], linkProbe: linkOnly };
     for (const { doc, path } of frameDocuments()) {
       report.headerBindings.push(...collectLinkBindings(doc, path));
       report.diagnosisEditorStructure.push(...collectDiagnosisEditorStructure(doc, path));
@@ -326,7 +326,7 @@
     panel.id = 'form-teknik-panel';
     panel.style.cssText = 'position:fixed;inset:10% 10%;z-index:2147483647;background:white;color:black;padding:20px;border:2px solid #333;box-shadow:0 4px 20px #0008;font:14px Arial;display:flex;flex-direction:column;gap:12px';
     const heading = document.createElement('strong');
-    heading.textContent = linkOnly ? 'Başvuru eşleştirme raporu — 3.6.42' : 'Alan tanıma raporu — 3.6.42';
+    heading.textContent = linkOnly ? 'Başvuru eşleştirme raporu — 3.6.43' : 'Alan tanıma raporu — 3.6.43';
     const note = document.createElement('div');
     note.textContent = linkOnly ? 'Bağlantı hazırlığı: yalnızca alan yapısı çıkarıldı. TC/başvuru değerleri rapora eklenmez. İki profil henüz bağlı değil; işlem veya kayıt yapılmadı.' : 'Yalnızca hedef alanların teknik bilgileri. Alan değerleri ve hasta bilgileri rapora eklenmez. Rapor otomatik gönderilmez.';
     const output = document.createElement('textarea');
@@ -626,7 +626,7 @@
       saves[0].click();
       // Kaydet sonucunu HBYS gösterir; ek bilgi penceresi açma.
     } catch (error) {
-      alert('[3.6.42] ' + (saveClicked ? 'Kaydet işleminin sonucunu ekrandan kontrol et. ' : shortcutName + ' durdu: ') +
+      alert('[3.6.43] ' + (saveClicked ? 'Kaydet işleminin sonucunu ekrandan kontrol et. ' : shortcutName + ' durdu: ') +
         error.message);
     } finally {
       activeFields = null;
@@ -1022,7 +1022,7 @@
       }
       uniqueAction(root, 'kaydet').click();
     } catch (error) {
-      alert('[3.6.42] Poliklinik: ' + error.message);
+      alert('[3.6.43] Poliklinik: ' + error.message);
     } finally {
       release();
     }
@@ -1274,7 +1274,7 @@
       }, 'Kod bir kez gönderildi; listede eklenmesi doğrulanamadı. Tekrar seçmeden önce Hizmet Listesi’ni kontrol et.');
       return true;
     } catch (error) {
-      alert('[3.6.42] Makro: ' + error.message +
+      alert('[3.6.43] Makro: ' + error.message +
         (sent ? ' Kod otomatik yeniden gönderilmedi.' : ' Kod gönderilmedi.'));
       return false;
     } finally {
@@ -1371,7 +1371,7 @@
         completed++;
       }
     } catch (error) {
-      alert('[3.6.42] Makro: ' + error.message);
+      alert('[3.6.43] Makro: ' + error.message);
     } finally {
       shortcutBusy = false;
       macroBatchActive = false;
@@ -1472,7 +1472,7 @@
       macroMenu = panel;
       document.body.appendChild(panel);
     } catch (error) {
-      alert('[3.6.42] Makro: ' + error.message);
+      alert('[3.6.43] Makro: ' + error.message);
     } finally {
       macroMenuOpening = false;
     }
@@ -1548,7 +1548,7 @@
       if (!message) throw new Error('Bilinmeyen yerel test yanıtı.');
       alert(message + '\nBu yalnızca gönderilen örneklerin karşılaştırmasıdır; canlı hasta takibi veya kayıt yapılmaz.');
     } catch (error) {
-      alert('[3.6.42] Profil testi: ' + error.message);
+      alert('[3.6.43] Profil testi: ' + error.message);
     } finally {
       linkComparisonBusy = false;
     }
@@ -1911,7 +1911,7 @@
       verify();
       save.click();
     } catch (error) {
-      alert('[3.6.42] Tanı: ' + error.message + (mutationStarted ?
+      alert('[3.6.43] Tanı: ' + error.message + (mutationStarted ?
         ' Tanı listesinde kısmi değişiklik olabilir; yeniden denemeden önce kontrol et.' : ''));
     } finally {
       shortcutBusy = false;
@@ -1955,6 +1955,16 @@
       });
       oldSelect.value = String(oldIndex);
       oldSelect.disabled = rows.length < 2;
+      const numberInput = document.createElement('input');
+      numberInput.type = 'text';
+      numberInput.inputMode = 'numeric';
+      numberInput.maxLength = 2;
+      numberInput.placeholder = 'Tanı numarası yaz + Boşluk (ör. 12)';
+      numberInput.setAttribute('aria-label', 'Tanı sıra numarası');
+      numberInput.style.cssText = 'padding:12px;font:bold 16px Arial';
+      const numberStatus = document.createElement('div');
+      numberStatus.setAttribute('role', 'status');
+      numberStatus.textContent = 'Numarayı yazıp Boşluk’a bas: tanıyı uygula ve kaydet.';
       const search = document.createElement('input');
       search.type = 'search';
       search.placeholder = 'Tanı kodu veya adıyla ara';
@@ -1968,7 +1978,7 @@
       const rendered = [];
       const submit = document.createElement('button');
       submit.type = 'button';
-      submit.textContent = rows.length ? 'Seçilen tanılarla değiştir ve kaydet' : 'Seçilen tanıları ekle ve kaydet';
+      submit.textContent = rows.length ? 'Seçilen tanıyla değiştir ve kaydet' : 'Tanıyı ekle ve kaydet';
       submit.disabled = true;
       submit.style.cssText = 'padding:12px;font:bold 14px Arial;cursor:pointer';
       const update = () => {
@@ -1983,8 +1993,9 @@
         button.style.cssText = 'min-height:44px;padding:9px;text-align:left;border:2px solid #c4ced8;border-radius:6px;background:#f4f6f8;color:#111;cursor:pointer';
         button.setAttribute('aria-pressed', 'false');
         button.onclick = () => {
-          if (selected.has(item.code)) selected.delete(item.code);
-          else selected.set(item.code, item);
+          const wasSelected = selected.has(item.code);
+          selected.clear();
+          if (!wasSelected) selected.set(item.code, item);
           for (const entry of rendered) {
             const active = selected.has(entry.item.code);
             entry.button.setAttribute('aria-pressed', String(active));
@@ -2005,23 +2016,46 @@
         }
         update();
       };
-      oldSelect.onchange = () => { oldIndex = Number(oldSelect.value); update(); };
+      oldSelect.onchange = () => { oldIndex = Number(oldSelect.value); update(); numberInput.focus(); };
       submit.onclick = () => {
         if (submit.disabled || !selected.size) return;
         submit.disabled = true;
         void applyDiagnosisReplacement(context, [...selected.values()], oldIndex);
       };
+      numberInput.onkeydown = event => {
+        if (!(event.code === 'Space' || event.key === ' ')) return;
+        event.preventDefault();
+        event.stopPropagation();
+        if (event.repeat) return;
+        const value = numberInput.value.trim();
+        const number = /^[1-9][0-9]?$/u.test(value) ? Number(value) : 0;
+        const item = diagnosisFavorites[number - 1];
+        if (!item) {
+          numberStatus.textContent = '1–' + diagnosisFavorites.length + ' arasında bir numara yaz.';
+          numberInput.select();
+          return;
+        }
+        if (rows.length > 0 && oldIndex < 0) {
+          numberStatus.textContent = 'Önce değiştirilecek mevcut tanıyı seç, ardından Boşluk’a bas.';
+          oldSelect.focus();
+          return;
+        }
+        if (shortcutBusy || outpatientRunning || macroBatchActive) return;
+        numberInput.disabled = true;
+        submit.disabled = true;
+        void applyDiagnosisReplacement(context, [item], oldIndex);
+      };
       const close = document.createElement('button');
       close.type = 'button';
       close.textContent = 'Kapat';
       close.onclick = closeDiagnosisMenu;
-      panel.append(heading, oldSelect, search, chosenLabel, buttons, submit, close);
+      panel.append(heading, oldSelect, numberInput, numberStatus, search, chosenLabel, buttons, submit, close);
       diagnosisMenu = panel;
       diagnosisMenuSubmit = submit;
       document.body.appendChild(panel);
-      search.focus();
+      numberInput.focus();
     } catch (error) {
-      alert('[3.6.42] Tanı: ' + error.message);
+      alert('[3.6.43] Tanı: ' + error.message);
     } finally {
       diagnosisMenuOpening = false;
     }
