@@ -1,4 +1,4 @@
-// Form Doldur uygulaması — sürüm 3.6.37
+// Form Doldur uygulaması — sürüm 3.6.38
 (() => {
   'use strict';
   if (!['http:', 'https:'].includes(location.protocol)) return;
@@ -221,7 +221,7 @@
   };
   const inspectFields = (linkOnly = false) => {
     document.getElementById('form-teknik-panel')?.remove();
-    const report = { version: '3.6.37', fields: [], saveButtons: [], choices: [], actions: [], tabs: [], editors: [], diagnosisStructure: [], dischargeStructure: [], supplyStructure: [], supplyChoices: [], headerBindings: [], diagnosisEditorStructure: [], linkProbe: linkOnly };
+    const report = { version: '3.6.38', fields: [], saveButtons: [], choices: [], actions: [], tabs: [], editors: [], diagnosisStructure: [], dischargeStructure: [], supplyStructure: [], supplyChoices: [], headerBindings: [], diagnosisEditorStructure: [], linkProbe: linkOnly };
     for (const { doc, path } of frameDocuments()) {
       report.headerBindings.push(...collectLinkBindings(doc, path));
       report.diagnosisEditorStructure.push(...collectDiagnosisEditorStructure(doc, path));
@@ -326,7 +326,7 @@
     panel.id = 'form-teknik-panel';
     panel.style.cssText = 'position:fixed;inset:10% 10%;z-index:2147483647;background:white;color:black;padding:20px;border:2px solid #333;box-shadow:0 4px 20px #0008;font:14px Arial;display:flex;flex-direction:column;gap:12px';
     const heading = document.createElement('strong');
-    heading.textContent = linkOnly ? 'Başvuru eşleştirme raporu — 3.6.37' : 'Alan tanıma raporu — 3.6.37';
+    heading.textContent = linkOnly ? 'Başvuru eşleştirme raporu — 3.6.38' : 'Alan tanıma raporu — 3.6.38';
     const note = document.createElement('div');
     note.textContent = linkOnly ? 'Bağlantı hazırlığı: yalnızca alan yapısı çıkarıldı. TC/başvuru değerleri rapora eklenmez. İki profil henüz bağlı değil; işlem veya kayıt yapılmadı.' : 'Yalnızca hedef alanların teknik bilgileri. Alan değerleri ve hasta bilgileri rapora eklenmez. Rapor otomatik gönderilmez.';
     const output = document.createElement('textarea');
@@ -626,7 +626,7 @@
       saves[0].click();
       // Kaydet sonucunu HBYS gösterir; ek bilgi penceresi açma.
     } catch (error) {
-      alert('[3.6.37] ' + (saveClicked ? 'Kaydet işleminin sonucunu ekrandan kontrol et. ' : shortcutName + ' durdu: ') +
+      alert('[3.6.38] ' + (saveClicked ? 'Kaydet işleminin sonucunu ekrandan kontrol et. ' : shortcutName + ' durdu: ') +
         error.message);
     } finally {
       activeFields = null;
@@ -1022,7 +1022,7 @@
       }
       uniqueAction(root, 'kaydet').click();
     } catch (error) {
-      alert('[3.6.37] Poliklinik: ' + error.message);
+      alert('[3.6.38] Poliklinik: ' + error.message);
     } finally {
       release();
     }
@@ -1363,7 +1363,7 @@
       }
       return true;
     } catch (error) {
-      alert('[3.6.37] Makro: ' + error.message +
+      alert('[3.6.38] Makro: ' + error.message +
         (sent ? ' Kod otomatik yeniden gönderilmedi.' : ' Kod gönderilmedi.'));
       return false;
     } finally {
@@ -1460,7 +1460,7 @@
         completed++;
       }
     } catch (error) {
-      alert('[3.6.37] Makro: ' + error.message);
+      alert('[3.6.38] Makro: ' + error.message);
     } finally {
       shortcutBusy = false;
       macroBatchActive = false;
@@ -1495,7 +1495,8 @@
   let macroMenuOpening = false;
   const toggleMacroMenu = async () => {
     if (macroMenu) { closeMacroMenu(); return; }
-    if (shortcutBusy || outpatientRunning || macroMenuOpening) return;
+    if (shortcutBusy || outpatientRunning || macroMenuOpening || diagnosisMenuOpening) return;
+    closeDiagnosisMenu();
     macroMenuOpening = true;
     try {
       if (document.getElementById('form-teknik-panel')) throw new Error('Önce teknik raporu kapat.');
@@ -1560,7 +1561,7 @@
       macroMenu = panel;
       document.body.appendChild(panel);
     } catch (error) {
-      alert('[3.6.37] Makro: ' + error.message);
+      alert('[3.6.38] Makro: ' + error.message);
     } finally {
       macroMenuOpening = false;
     }
@@ -1636,10 +1637,522 @@
       if (!message) throw new Error('Bilinmeyen yerel test yanıtı.');
       alert(message + '\nBu yalnızca gönderilen örneklerin karşılaştırmasıdır; canlı hasta takibi veya kayıt yapılmaz.');
     } catch (error) {
-      alert('[3.6.37] Profil testi: ' + error.message);
+      alert('[3.6.38] Profil testi: ' + error.message);
     } finally {
       linkComparisonBusy = false;
     }
+  };
+
+  const diagnosisFavorites = [
+  {
+    "code": "Z54",
+    "label": "İyileşme dönemi"
+  },
+  {
+    "code": "J06.9",
+    "label": "Akut üst solunum yolu enfeksiyonu"
+  },
+  {
+    "code": "M79.9",
+    "label": "Yumuşak doku bozukluğu"
+  },
+  {
+    "code": "M54.5",
+    "label": "Bel ağrısı"
+  },
+  {
+    "code": "T78.4",
+    "label": "Alerji"
+  },
+  {
+    "code": "Z00.0",
+    "label": "Genel tıbbi muayene"
+  },
+  {
+    "code": "R42",
+    "label": "Baş dönmesi"
+  },
+  {
+    "code": "R51",
+    "label": "Baş ağrısı"
+  },
+  {
+    "code": "K52.9",
+    "label": "Gastroenterit ve kolit"
+  },
+  {
+    "code": "M79.19",
+    "label": "Miyalji (M79.19)"
+  },
+  {
+    "code": "R11",
+    "label": "Bulantı ve kusma"
+  },
+  {
+    "code": "W57",
+    "label": "Zehirsiz böcek ısırması"
+  },
+  {
+    "code": "R10.4",
+    "label": "Karın ağrısı"
+  },
+  {
+    "code": "R07.4",
+    "label": "Göğüs ağrısı"
+  },
+  {
+    "code": "Z02",
+    "label": "İdari amaçlı muayene"
+  },
+  {
+    "code": "R04.0",
+    "label": "Epistaksis"
+  },
+  {
+    "code": "Z72.1",
+    "label": "Alkol kullanımı"
+  },
+  {
+    "code": "N23",
+    "label": "Renal kolik"
+  },
+  {
+    "code": "K59.0",
+    "label": "Kabızlık"
+  },
+  {
+    "code": "K02.9",
+    "label": "Diş çürüğü"
+  },
+  {
+    "code": "R00.2",
+    "label": "Çarpıntı"
+  },
+  {
+    "code": "H60.9",
+    "label": "Otitis eksterna"
+  },
+  {
+    "code": "I10",
+    "label": "Esansiyel hipertansiyon"
+  },
+  {
+    "code": "R55",
+    "label": "Senkop ve kollaps"
+  },
+  {
+    "code": "H66.9",
+    "label": "Otitis media"
+  },
+  {
+    "code": "F41.9",
+    "label": "Anksiyete bozukluğu"
+  },
+  {
+    "code": "M79.1",
+    "label": "Miyalji"
+  },
+  {
+    "code": "R50.9",
+    "label": "Ateş"
+  },
+  {
+    "code": "J44.9",
+    "label": "Kronik obstrüktif akciğer hastalığı"
+  },
+  {
+    "code": "H10.3",
+    "label": "Akut konjonktivit"
+  },
+  {
+    "code": "N30.0",
+    "label": "Akut sistit"
+  },
+  {
+    "code": "Z02.9",
+    "label": "İdari amaçlı muayene (Z02.9)"
+  }
+];
+  let diagnosisMenu = null;
+  let diagnosisMenuSubmit = null;
+  let diagnosisMenuOpening = false;
+  const closeDiagnosisMenu = () => {
+    diagnosisMenu?.remove();
+    diagnosisMenu = null;
+    diagnosisMenuSubmit = null;
+  };
+  const diagnosisCodeText = text => (text || '').replace(/\s+/gu, '').toUpperCase();
+  const diagnosisGridInfo = root => {
+    const matches = [];
+    for (const grid of root.querySelectorAll('.x-grid, .x-grid-panel')) {
+      if (!shown(grid)) continue;
+      const headers = [...grid.querySelectorAll('.x-column-header-text')];
+      const compact = header => cleanLabel(header.textContent || '').replace(/[\s.:*]/gu, '');
+      const code = headers.filter(header => ['kodu', 'kod'].includes(compact(header)));
+      const name = headers.filter(header => ['tanıadı', 'tanı'].includes(compact(header)));
+      // Raporda ana hasta tanı tablosunda Tanı Tipi; katalogda Adet sütunu var.
+      if (code.length !== 1 || name.length !== 1 || !headers.some(header => compact(header) === 'tanıtipi') ||
+          headers.some(header => ['adet', 'miktar'].includes(compact(header)))) continue;
+      const column = header => header.closest('.x-column-header')?.id || header.id.replace(/-textEl$/u, '');
+      matches.push({ grid, codeColumn: column(code[0]), nameColumn: column(name[0]) });
+    }
+    if (matches.length !== 1) throw new Error('Ana hasta tanı tablosu tek olarak bulunamadı. Tanı değiştirilmedi.');
+    return matches[0];
+  };
+  const diagnosisPatientRows = root => {
+    const { grid, codeColumn, nameColumn } = diagnosisGridInfo(root);
+    const result = [];
+    for (const row of grid.querySelectorAll('.x-grid-row, .x-grid3-row, .x-grid-item, [role="row"]')) {
+      if (row.closest('.x-grid, .x-grid-panel') !== grid || !row.getClientRects().length) continue;
+      const cells = [...row.querySelectorAll('.x-grid-cell, [role="gridcell"]')];
+      const codeCell = cells.find(cell => cell.classList.contains('x-grid-cell-' + codeColumn));
+      const nameCell = cells.find(cell => cell.classList.contains('x-grid-cell-' + nameColumn));
+      if (!codeCell) continue;
+      const code = diagnosisCodeText(codeCell.textContent);
+      if (!/^[A-Z][0-9]{2}(?:\.[0-9A-Z]{1,4})?$/u.test(code)) continue;
+      const key = row.getAttribute('data-recordid') || /-record-(.+)$/u.exec(row.id || '')?.[1] || null;
+      result.push({ code, key, row, codeCell: codeCell.querySelector('.x-grid-cell-inner') || codeCell,
+        name: (nameCell?.textContent || '').replace(/\s+/gu, ' ').trim() });
+    }
+    return result;
+  };
+  const diagnosisSignature = rows => JSON.stringify(rows.map(row => [row.code, row.key]).sort());
+  const diagnosisCodeCounts = rows => {
+    const counts = new Map();
+    for (const row of rows) counts.set(row.code, (counts.get(row.code) || 0) + 1);
+    return JSON.stringify([...counts].sort());
+  };
+  const diagnosisGridAction = (grid, iconClass) => {
+    const buttons = new Set();
+    for (const icon of grid.querySelectorAll('.x-btn-icon-el.' + iconClass)) {
+      const button = icon.closest('a[role="button"], button, .x-btn');
+      if (button && button.closest('.x-grid, .x-grid-panel') === grid && shown(button) &&
+          !button.closest('[disabled], [aria-disabled="true"], .x-item-disabled, .x-disabled, .x-btn-disabled')) {
+        buttons.add(button);
+      }
+    }
+    if (buttons.size !== 1) throw new Error('Hasta tanı tablosunun ' + (iconClass === 'sil' ? 'Tanı Sil' : 'Ekle') +
+      ' düğmesi tek ve etkin bulunamadı.');
+    return [...buttons][0];
+  };
+  const diagnosisContext = () => {
+    const matches = [];
+    for (const { doc } of frameDocuments()) {
+      for (const anchor of doc.querySelectorAll('input[name="pol.triaj"]')) {
+        let root = anchor.parentElement;
+        while (root) {
+          if (shown(root) && outpatientTabs(root, 'doktor notları').length === 1 &&
+              outpatientTabs(root, 'muayene bilgileri').length === 1) {
+            matches.push({ doc, root, anchor });
+            break;
+          }
+          root = root.parentElement;
+        }
+      }
+    }
+    if (matches.length !== 1) throw new Error('Tek bir Poliklinik ekranı bulunamadı.');
+    const context = matches[0];
+    const selected = macroPatientRows(context.doc);
+    if (selected.length !== 1) throw new Error('Soldaki hasta listesinden tek hasta seç.');
+    context.patientSnapshot = selected[0].textContent;
+    return context;
+  };
+  const assertDiagnosisPatient = context => {
+    if (!macroPatientStable(context) || !context.root.isConnected || !context.anchor.isConnected) {
+      throw new Error('Hasta, başvuru veya Poliklinik ekranı değişti. Tanı işlemi durduruldu.');
+    }
+  };
+  const diagnosisPickerWindows = doc => {
+    const windows = new Set();
+    for (const done of outpatientActions(doc, 'tamam')) {
+      const dialog = done.closest('.x-window');
+      if (!dialog) continue;
+      const search = [...dialog.querySelectorAll('input[type="search"][name="name"]')].filter(shown);
+      if (search.length === 1 && dialog.querySelectorAll('.x-grid').length >= 2) windows.add(dialog);
+    }
+    return [...windows];
+  };
+  const diagnosisPickerOpen = dialog => dialog.isConnected && outpatientActions(dialog, 'tamam').length === 1;
+  const addReplacementDiagnosis = async (context, code) => {
+    const { root, doc } = context;
+    const wait = (find, message) => waitUntil(() => { assertDiagnosisPatient(context); return find(); }, message);
+    if (diagnosisPickerWindows(doc).length) throw new Error('Önce açık Tanı Ekleme Listesi’ni kapat.');
+    diagnosisGridAction(diagnosisGridInfo(root).grid, 'ekle').click();
+    const dialog = await wait(() => {
+      const dialogs = diagnosisPickerWindows(doc);
+      if (dialogs.length > 1) throw new Error('Birden fazla Tanı Ekleme Listesi açıldı.');
+      return dialogs[0];
+    }, 'Tanı Ekleme Listesi bulunamadı. Eski tanı silinmedi.');
+    const visibleCells = () => diagnosisCells(dialog, code).filter(shown);
+    if (!visibleCells().length) {
+      const search = [...dialog.querySelectorAll('input[type="search"][name="name"]')]
+        .filter(field => shown(field) && !field.disabled && !field.readOnly);
+      if (search.length !== 1) throw new Error('Tanı arama alanı bulunamadı. Eski tanı silinmedi.');
+      const setter = Object.getOwnPropertyDescriptor(doc.defaultView.HTMLInputElement.prototype, 'value').set;
+      search[0].focus();
+      setter.call(search[0], code);
+      search[0].dispatchEvent(new doc.defaultView.Event('input', { bubbles: true }));
+      search[0].dispatchEvent(new doc.defaultView.Event('change', { bubbles: true }));
+      const digit = code.slice(-1);
+      search[0].dispatchEvent(new doc.defaultView.KeyboardEvent('keyup', {
+        key: digit, code: 'Digit' + digit, keyCode: digit.charCodeAt(0), which: digit.charCodeAt(0), bubbles: true
+      }));
+    }
+    const cell = await wait(() => {
+      const cells = visibleCells();
+      if (cells.length > 1) throw new Error('Hedef tanı birden fazla satırda bulundu. Eski tanı silinmedi.');
+      return cells[0];
+    }, 'Seçilen tanı katalogda bulunamadı. Eski tanı silinmedi.');
+    for (const [type, detail] of [['mousedown', 1], ['mouseup', 1], ['click', 1],
+      ['mousedown', 2], ['mouseup', 2], ['click', 2], ['dblclick', 2]]) {
+      assertDiagnosisPatient(context);
+      if (!cell.isConnected || !diagnosisPickerOpen(dialog)) break;
+      cell.dispatchEvent(new doc.defaultView.MouseEvent(type, {
+        bubbles: true, cancelable: true, view: doc.defaultView, button: 0,
+        buttons: type === 'mousedown' ? 1 : 0, detail
+      }));
+    }
+    await wait(() => diagnosisCells(dialog, code).length >= 2 ||
+      (!diagnosisPickerOpen(dialog) && diagnosisPatientRows(root).some(row => row.code === code)),
+      'Yeni tanı seçimi doğrulanamadı. Eski tanı silinmedi.');
+    if (diagnosisPickerOpen(dialog)) uniqueAction(dialog, 'tamam').click();
+    await wait(() => !diagnosisPickerOpen(dialog) && diagnosisPatientRows(root).some(row => row.code === code),
+      'Yeni tanı ana tabloda doğrulanamadı. Eski tanı silinmedi.');
+  };
+  const findOldDiagnosis = (rows, old) => {
+    const matches = rows.filter(row => row.code === old.code && (old.key === null || row.key === old.key));
+    if (matches.length > 1) throw new Error('Değiştirilecek eski tanı belirsiz. Silme yapılmadı.');
+    return matches[0] || null;
+  };
+  const removeReplacedDiagnosis = async (context, old, newCode) => {
+    const { root, doc } = context;
+    assertDiagnosisPatient(context);
+    const target = findOldDiagnosis(diagnosisPatientRows(root), old);
+    if (!target) throw new Error('Eski tanı değişmiş; silme yapılmadı.');
+    const messageBoxes = () => [...doc.querySelectorAll('.x-message-box, [role="alertdialog"]')].filter(shown);
+    if (messageBoxes().length) throw new Error('Önce açık HBYS uyarısını kapat. Eski tanı silinmedi.');
+    target.codeCell.click();
+    await waitUntil(() => {
+      assertDiagnosisPatient(context);
+      const selected = [...diagnosisGridInfo(root).grid.querySelectorAll('.x-grid-row-selected, .x-grid-item-selected')];
+      return selected.length === 1 && selected[0] === target.row;
+    }, 'Silinecek tanı satırı seçilemedi.');
+    assertDiagnosisPatient(context);
+    if (!diagnosisPatientRows(root).some(row => row.code === newCode)) throw new Error('Yeni tanı kayboldu. Silme yapılmadı.');
+    diagnosisGridAction(diagnosisGridInfo(root).grid, 'sil').click();
+    const confirmed = new Set();
+    await waitUntil(() => {
+      assertDiagnosisPatient(context);
+      const rows = diagnosisPatientRows(root);
+      if (!rows.some(row => row.code === newCode)) throw new Error('Yeni tanı bulunamıyor. İşlemi kontrol et.');
+      if (!findOldDiagnosis(rows, old)) return true;
+      const boxes = messageBoxes();
+      if (boxes.length > 1) throw new Error('Birden fazla HBYS uyarısı açıldı. Onay verilmedi.');
+      if (boxes.length === 1 && !confirmed.has(boxes[0])) {
+        const box = boxes[0];
+        const text = normalize(box.textContent || '');
+        if (!/(tanı|kayıt|kaydı)/u.test(text) || !/sil/u.test(text)) {
+          throw new Error('Beklenmeyen HBYS uyarısı açıldı. Onay verilmedi.');
+        }
+        const yes = outpatientActions(box, 'evet');
+        if (yes.length !== 1) throw new Error('Tanı silme onayı tek olarak bulunamadı.');
+        confirmed.add(box);
+        yes[0].click();
+      }
+      return false;
+    }, 'Eski tanının kaldırıldığı doğrulanamadı. Listeyi kontrol et.');
+  };
+  const expectedDiagnosisCodes = (rows, targetCode, oldIndex) => {
+    const expected = rows.map(row => ({ code: row.code }));
+    const old = oldIndex >= 0 ? rows[oldIndex] : null;
+    if (old && old.code !== targetCode) expected.splice(oldIndex, 1);
+    if (!expected.some(row => row.code === targetCode)) expected.push({ code: targetCode });
+    return diagnosisCodeCounts(expected);
+  };
+  const applyDiagnosisReplacement = async (context, target, oldIndex) => {
+    if (shortcutBusy || outpatientRunning || macroBatchActive) return;
+    if (!diagnosisFavorites.some(item => item.code === target.code && item.label === target.label)) return;
+    shortcutBusy = true;
+    let mutationStarted = false;
+    try {
+      assertDiagnosisPatient(context);
+      openOutpatientTab(context.root, 'muayene bilgileri');
+      const initial = diagnosisPatientRows(context.root);
+      if (diagnosisSignature(initial) !== context.diagnosisSnapshot) {
+        throw new Error('Menü açıldıktan sonra tanılar değişti. Menüyü yeniden aç.');
+      }
+      if ((initial.length && (!Number.isInteger(oldIndex) || !initial[oldIndex])) ||
+          (!initial.length && oldIndex !== -1)) throw new Error('Değiştirilecek tanıyı seç.');
+      const old = initial[oldIndex] || null;
+      if (old?.code === target.code) { closeDiagnosisMenu(); return; }
+      const expected = expectedDiagnosisCodes(initial, target.code, oldIndex);
+      closeDiagnosisMenu();
+      const fields = [...context.root.querySelectorAll('input[name="pol.triaj"]')].filter(shown);
+      if (fields.length !== 1) throw new Error('Poliklinik formu doğrulanamadı.');
+      const actions = admissionTriageActions(context.root, context.doc, fields[0]);
+      if (actions && !actions.saves.length && actions.edits.length === 1) {
+        actions.edits[0].click();
+        await waitUntil(() => {
+          assertDiagnosisPatient(context);
+          try { return diagnosisGridAction(diagnosisGridInfo(context.root).grid, 'ekle'); } catch (_) { return null; }
+        }, 'Tanı düzenleme açılamadı.');
+      }
+      assertDiagnosisPatient(context);
+      if (!initial.some(row => row.code === target.code)) {
+        mutationStarted = true;
+        await addReplacementDiagnosis(context, target.code);
+      }
+      assertDiagnosisPatient(context);
+      if (old) {
+        mutationStarted = true;
+        await removeReplacedDiagnosis(context, old, target.code);
+      }
+      const verify = () => {
+        assertDiagnosisPatient(context);
+        if (diagnosisCodeCounts(diagnosisPatientRows(context.root)) !== expected) {
+          throw new Error('Son tanı listesi beklenen sonuçla uyuşmuyor. Otomatik Kaydet’e basılmadı.');
+        }
+      };
+      verify();
+      const save = await waitUntil(() => {
+        verify();
+        const triage = [...context.root.querySelectorAll('input[name="pol.triaj"]')].filter(shown);
+        if (triage.length !== 1) throw new Error('Kaydetmeden önce form değişti.');
+        const current = admissionTriageActions(context.root, context.doc, triage[0]);
+        return current?.saves.length === 1 ? current.saves[0] : null;
+      }, 'Etkin Kaydet düğmesi bulunamadı. Tanı listesini kontrol et.');
+      verify();
+      save.click();
+    } catch (error) {
+      alert('[3.6.38] Tanı: ' + error.message + (mutationStarted ?
+        ' Tanı listesinde kısmi değişiklik olabilir; yeniden denemeden önce kontrol et.' : ''));
+    } finally {
+      shortcutBusy = false;
+    }
+  };
+  const toggleDiagnosisMenu = async () => {
+    if (diagnosisMenu) { closeDiagnosisMenu(); return; }
+    if (shortcutBusy || outpatientRunning || macroBatchActive || macroMenuOpening || diagnosisMenuOpening) return;
+    diagnosisMenuOpening = true;
+    try {
+      if (document.getElementById('form-teknik-panel')) throw new Error('Önce teknik raporu kapat.');
+      closeMacroMenu();
+      const context = diagnosisContext();
+      assertDiagnosisPatient(context);
+      openOutpatientTab(context.root, 'muayene bilgileri');
+      const rows = await waitUntil(() => {
+        assertDiagnosisPatient(context);
+        try { return diagnosisPatientRows(context.root); } catch (_) { return null; }
+      }, 'Hasta tanı tablosu açılamadı.');
+      context.diagnosisSnapshot = diagnosisSignature(rows);
+      const panel = document.createElement('div');
+      panel.id = 'poliklinik-tani-menu';
+      panel.style.cssText = 'position:fixed;left:12px;top:8%;max-height:84vh;max-width:calc(100vw - 24px);width:680px;overflow:auto;box-sizing:border-box;z-index:2147483647;background:white;color:#111;border:2px solid #285c8c;border-radius:8px;padding:14px;font:14px Arial;display:flex;flex-direction:column;gap:10px;box-shadow:0 3px 14px #0005';
+      const heading = document.createElement('strong');
+      heading.textContent = 'Tanı değiştir · Alt+7 / Esc ile kapat';
+      const oldSelect = document.createElement('select');
+      oldSelect.setAttribute('aria-label', 'Değiştirilecek mevcut tanı');
+      oldSelect.style.cssText = 'padding:10px;font:14px Arial';
+      let oldIndex = rows.length === 1 ? 0 : -1;
+      if (rows.length !== 1) {
+        const option = document.createElement('option');
+        option.value = '-1';
+        option.textContent = rows.length ? 'Değiştirilecek tanıyı seç' : 'Mevcut tanı yok — yeni tanı eklenecek';
+        oldSelect.appendChild(option);
+      }
+      rows.forEach((row, index) => {
+        const option = document.createElement('option');
+        option.value = String(index);
+        option.textContent = row.code + ' · ' + row.name;
+        oldSelect.appendChild(option);
+      });
+      oldSelect.value = String(oldIndex);
+      oldSelect.disabled = rows.length < 2;
+      const search = document.createElement('input');
+      search.type = 'search';
+      search.placeholder = 'Tanı kodu veya adıyla ara';
+      search.setAttribute('aria-label', 'Sık kullanılan tanılarda ara');
+      search.style.cssText = 'padding:10px;font:14px Arial';
+      const buttons = document.createElement('div');
+      buttons.style.cssText = 'display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:6px';
+      let selected = null;
+      const chosenLabel = document.createElement('div');
+      chosenLabel.textContent = 'Yeni tanı seçilmedi.';
+      const rendered = [];
+      const submit = document.createElement('button');
+      submit.type = 'button';
+      submit.textContent = rows.length ? 'Seçilen tanıyla değiştir ve kaydet' : 'Tanıyı ekle ve kaydet';
+      submit.disabled = true;
+      submit.style.cssText = 'padding:12px;font:bold 14px Arial;cursor:pointer';
+      const update = () => { submit.disabled = !selected || (rows.length > 0 && oldIndex < 0); };
+      for (const item of diagnosisFavorites) {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.textContent = item.code + ' · ' + item.label;
+        button.style.cssText = 'min-height:44px;padding:9px;text-align:left;border:2px solid #c4ced8;border-radius:6px;background:#f4f6f8;color:#111;cursor:pointer';
+        button.setAttribute('aria-pressed', 'false');
+        button.onclick = () => {
+          selected = item;
+          chosenLabel.textContent = 'Yeni tanı: ' + item.code + ' · ' + item.label;
+          for (const entry of rendered) {
+            const active = entry.item.code === item.code;
+            entry.button.setAttribute('aria-pressed', String(active));
+            entry.button.style.backgroundColor = active ? '#176b48' : '#f4f6f8';
+            entry.button.style.color = active ? '#fff' : '#111';
+          }
+          update();
+        };
+        rendered.push({ item, button });
+        buttons.appendChild(button);
+      }
+      search.oninput = () => {
+        const query = normalize(search.value);
+        const codeQuery = diagnosisCodeText(search.value);
+        selected = null;
+        chosenLabel.textContent = 'Yeni tanı seçilmedi.';
+        for (const entry of rendered) {
+          entry.button.hidden = !diagnosisCodeText(entry.item.code).includes(codeQuery) &&
+            !normalize(entry.item.label).includes(query);
+          entry.button.setAttribute('aria-pressed', 'false');
+          entry.button.style.backgroundColor = '#f4f6f8';
+          entry.button.style.color = '#111';
+        }
+        update();
+      };
+      oldSelect.onchange = () => { oldIndex = Number(oldSelect.value); update(); };
+      submit.onclick = () => {
+        if (submit.disabled || !selected) return;
+        submit.disabled = true;
+        void applyDiagnosisReplacement(context, selected, oldIndex);
+      };
+      const close = document.createElement('button');
+      close.type = 'button';
+      close.textContent = 'Kapat';
+      close.onclick = closeDiagnosisMenu;
+      panel.append(heading, oldSelect, search, chosenLabel, buttons, submit, close);
+      diagnosisMenu = panel;
+      diagnosisMenuSubmit = submit;
+      document.body.appendChild(panel);
+      search.focus();
+    } catch (error) {
+      alert('[3.6.38] Tanı: ' + error.message);
+    } finally {
+      diagnosisMenuOpening = false;
+    }
+  };
+  const isDiagnosisMenuKey = event => event.altKey && !event.ctrlKey && !event.shiftKey && !event.metaKey &&
+    (['Digit7', 'Numpad7'].includes(event.code) || event.key === '7' || event.keyCode === 55 || event.keyCode === 103);
+  const handleDiagnosisMenuKey = event => {
+    if (!diagnosisMenu?.isConnected || event.altKey || event.ctrlKey || event.shiftKey || event.metaKey) return false;
+    const escape = event.key === 'Escape' || event.code === 'Escape';
+    const enter = event.key === 'Enter' || ['Enter', 'NumpadEnter'].includes(event.code);
+    if (!escape && !enter) return false;
+    event.preventDefault();
+    event.stopPropagation();
+    if (event.repeat) return true;
+    if (escape) closeDiagnosisMenu();
+    else if (diagnosisMenuSubmit && !diagnosisMenuSubmit.disabled) diagnosisMenuSubmit.click();
+    return true;
   };
 
   const shortcutNumber = event => {
@@ -1672,6 +2185,16 @@
       }, true);
       view.addEventListener('keydown', event => {
         ctrlTap.keydown(event);
+        if (handleDiagnosisMenuKey(event)) return;
+        if (isDiagnosisMenuKey(event)) {
+          event.preventDefault();
+          event.stopPropagation();
+          if (!event.repeat && !pressedShortcuts.has('diagnosis-menu')) {
+            pressedShortcuts.add('diagnosis-menu');
+            void toggleDiagnosisMenu();
+          }
+          return;
+        }
         if (handleMacroSelectionKey(event)) return;
         if (isLinkProbeKey(event)) {
           event.preventDefault();
