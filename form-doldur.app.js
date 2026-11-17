@@ -1,4 +1,4 @@
-// Form Doldur uygulaması — sürüm 3.6.36
+// Form Doldur uygulaması — sürüm 3.6.37
 (() => {
   'use strict';
   if (!['http:', 'https:'].includes(location.protocol)) return;
@@ -221,7 +221,7 @@
   };
   const inspectFields = (linkOnly = false) => {
     document.getElementById('form-teknik-panel')?.remove();
-    const report = { version: '3.6.36', fields: [], saveButtons: [], choices: [], actions: [], tabs: [], editors: [], diagnosisStructure: [], dischargeStructure: [], supplyStructure: [], supplyChoices: [], headerBindings: [], diagnosisEditorStructure: [], linkProbe: linkOnly };
+    const report = { version: '3.6.37', fields: [], saveButtons: [], choices: [], actions: [], tabs: [], editors: [], diagnosisStructure: [], dischargeStructure: [], supplyStructure: [], supplyChoices: [], headerBindings: [], diagnosisEditorStructure: [], linkProbe: linkOnly };
     for (const { doc, path } of frameDocuments()) {
       report.headerBindings.push(...collectLinkBindings(doc, path));
       report.diagnosisEditorStructure.push(...collectDiagnosisEditorStructure(doc, path));
@@ -326,7 +326,7 @@
     panel.id = 'form-teknik-panel';
     panel.style.cssText = 'position:fixed;inset:10% 10%;z-index:2147483647;background:white;color:black;padding:20px;border:2px solid #333;box-shadow:0 4px 20px #0008;font:14px Arial;display:flex;flex-direction:column;gap:12px';
     const heading = document.createElement('strong');
-    heading.textContent = linkOnly ? 'Başvuru eşleştirme raporu — 3.6.36' : 'Alan tanıma raporu — 3.6.36';
+    heading.textContent = linkOnly ? 'Başvuru eşleştirme raporu — 3.6.37' : 'Alan tanıma raporu — 3.6.37';
     const note = document.createElement('div');
     note.textContent = linkOnly ? 'Bağlantı hazırlığı: yalnızca alan yapısı çıkarıldı. TC/başvuru değerleri rapora eklenmez. İki profil henüz bağlı değil; işlem veya kayıt yapılmadı.' : 'Yalnızca hedef alanların teknik bilgileri. Alan değerleri ve hasta bilgileri rapora eklenmez. Rapor otomatik gönderilmez.';
     const output = document.createElement('textarea');
@@ -626,7 +626,7 @@
       saves[0].click();
       // Kaydet sonucunu HBYS gösterir; ek bilgi penceresi açma.
     } catch (error) {
-      alert('[3.6.36] ' + (saveClicked ? 'Kaydet işleminin sonucunu ekrandan kontrol et. ' : shortcutName + ' durdu: ') +
+      alert('[3.6.37] ' + (saveClicked ? 'Kaydet işleminin sonucunu ekrandan kontrol et. ' : shortcutName + ' durdu: ') +
         error.message);
     } finally {
       activeFields = null;
@@ -1022,7 +1022,7 @@
       }
       uniqueAction(root, 'kaydet').click();
     } catch (error) {
-      alert('[3.6.36] Poliklinik: ' + error.message);
+      alert('[3.6.37] Poliklinik: ' + error.message);
     } finally {
       release();
     }
@@ -1215,6 +1215,32 @@
       await pause(150);
     }
   };
+  const admissionTriageActions = (root, doc, field) => {
+    const enabled = button => !button.closest(
+      '[disabled], [aria-disabled="true"], .x-item-disabled, .x-disabled, .x-btn-disabled'
+    );
+    let scope = root;
+    while (scope?.isConnected) {
+      const triage = [...scope.querySelectorAll('input[name="pol.triaj"]')].filter(shown);
+      if (triage.length > 1) throw new Error('Kaydet alanında birden fazla Poliklinik formu var. Kayıt yapılmadı.');
+      if (triage.length === 1 && triage[0] === field) {
+        const buttons = [...scope.querySelectorAll('a[role="button"], button, .x-btn')].filter(shown);
+        const saves = buttons.filter(button => outpatientLabel(button) === 'kaydet');
+        const edits = buttons.filter(button =>
+          /^(değiştir|düzenle)(?:\s*[\[(](?:insert|ınsert|ins|ıns)[\])])?$/u.test(cleanLabel(button.textContent || '')) &&
+          enabled(button));
+        if (saves.length > 1 || edits.length > 1) {
+          throw new Error('Poliklinik kaydetme/düzenleme düğmesi belirsiz. Kayıt yapılmadı.');
+        }
+        if (saves.length || edits.length) {
+          return { scope, saves: saves.filter(enabled), edits };
+        }
+      }
+      if (scope === doc.body) break;
+      scope = scope.parentElement;
+    }
+    return null;
+  };
   const setAdmissionMacroTriage = async context => {
     const { doc } = context;
     const checkPatient = () => {
@@ -1246,14 +1272,16 @@
     let field = await waitUntil(() => { if (!checkPatient()) return null; return getField(); },
       'Yatış eklendi, Poliklinik Triaj alanı bulunamadı. Triajı elle kontrol et.');
     if (normalize(field.value) === 'sarı') return;
-    if (getTriggers(field).length !== 1) {
-      const edit = [...root.querySelectorAll('a[role="button"], button, .x-btn')]
-        .filter(button => shown(button) &&
-          /^(değiştir|düzenle)(?:\s*[\[(](?:insert|ınsert|ins|ıns)[\])])?$/u.test(cleanLabel(button.textContent || '')) &&
-          !button.closest('[disabled], [aria-disabled="true"], .x-item-disabled'));
-      if (edit.length !== 1) throw new Error('Yatış eklendi fakat Triaj düzenlenemiyor. Sarı seçimini elle yap.');
+    const actions = await waitUntil(() => {
+      if (!checkPatient()) return null;
+      return admissionTriageActions(root, doc, field);
+    }, 'Yatış eklendi, Poliklinik kayıt araçları hazır olmadı. Triajı elle kontrol et.');
+    if (getTriggers(field).length !== 1 || (!actions.saves.length && actions.edits.length === 1)) {
+      if (actions.edits.length !== 1) {
+        throw new Error('Yatış eklendi fakat Triaj düzenlenemiyor. Sarı seçimini elle yap.');
+      }
       if (!checkPatient()) throw new Error('Hasta doğrulanamadı. Triaj değiştirilmedi.');
-      edit[0].click();
+      actions.edits[0].click();
       field = await waitUntil(() => {
         if (!checkPatient()) return null;
         const current = getField();
@@ -1286,7 +1314,18 @@
     if (!checkPatient() || !field.isConnected || normalize(field.value) !== 'sarı') {
       throw new Error('Kaydetmeden önce hasta veya triaj değişti. Kayıt yapılmadı.');
     }
-    uniqueAction(root, 'kaydet').click();
+    const save = await waitUntil(() => {
+      if (!checkPatient()) return null;
+      if (!field.isConnected || getField() !== field || normalize(field.value) !== 'sarı') {
+        throw new Error('Kaydetmeden önce Triaj alanı değişti. Kayıt yapılmadı.');
+      }
+      const current = admissionTriageActions(root, doc, field);
+      return current?.saves.length === 1 ? current.saves[0] : null;
+    }, 'Yatış eklendi fakat Sarı triaj için etkin Kaydet düğmesi hazır olmadı. Makroyu tekrar ekleme.');
+    if (!checkPatient() || normalize(field.value) !== 'sarı') {
+      throw new Error('Kaydetmeden önce hasta veya triaj değişti. Kayıt yapılmadı.');
+    }
+    save.click();
   };
   const enterMacro = async (context, item, fromBatch = false) => {
     if (shortcutBusy && !fromBatch) return false;
@@ -1324,7 +1363,7 @@
       }
       return true;
     } catch (error) {
-      alert('[3.6.36] Makro: ' + error.message +
+      alert('[3.6.37] Makro: ' + error.message +
         (sent ? ' Kod otomatik yeniden gönderilmedi.' : ' Kod gönderilmedi.'));
       return false;
     } finally {
@@ -1421,7 +1460,7 @@
         completed++;
       }
     } catch (error) {
-      alert('[3.6.36] Makro: ' + error.message);
+      alert('[3.6.37] Makro: ' + error.message);
     } finally {
       shortcutBusy = false;
       macroBatchActive = false;
@@ -1521,7 +1560,7 @@
       macroMenu = panel;
       document.body.appendChild(panel);
     } catch (error) {
-      alert('[3.6.36] Makro: ' + error.message);
+      alert('[3.6.37] Makro: ' + error.message);
     } finally {
       macroMenuOpening = false;
     }
@@ -1597,7 +1636,7 @@
       if (!message) throw new Error('Bilinmeyen yerel test yanıtı.');
       alert(message + '\nBu yalnızca gönderilen örneklerin karşılaştırmasıdır; canlı hasta takibi veya kayıt yapılmaz.');
     } catch (error) {
-      alert('[3.6.36] Profil testi: ' + error.message);
+      alert('[3.6.37] Profil testi: ' + error.message);
     } finally {
       linkComparisonBusy = false;
     }
