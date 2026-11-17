@@ -1,4 +1,4 @@
-// Form Doldur uygulaması — sürüm 3.6.41
+// Form Doldur uygulaması — sürüm 3.6.42
 (() => {
   'use strict';
   if (!['http:', 'https:'].includes(location.protocol)) return;
@@ -221,7 +221,7 @@
   };
   const inspectFields = (linkOnly = false) => {
     document.getElementById('form-teknik-panel')?.remove();
-    const report = { version: '3.6.41', fields: [], saveButtons: [], choices: [], actions: [], tabs: [], editors: [], diagnosisStructure: [], dischargeStructure: [], supplyStructure: [], supplyChoices: [], headerBindings: [], diagnosisEditorStructure: [], linkProbe: linkOnly };
+    const report = { version: '3.6.42', fields: [], saveButtons: [], choices: [], actions: [], tabs: [], editors: [], diagnosisStructure: [], dischargeStructure: [], supplyStructure: [], supplyChoices: [], headerBindings: [], diagnosisEditorStructure: [], linkProbe: linkOnly };
     for (const { doc, path } of frameDocuments()) {
       report.headerBindings.push(...collectLinkBindings(doc, path));
       report.diagnosisEditorStructure.push(...collectDiagnosisEditorStructure(doc, path));
@@ -326,7 +326,7 @@
     panel.id = 'form-teknik-panel';
     panel.style.cssText = 'position:fixed;inset:10% 10%;z-index:2147483647;background:white;color:black;padding:20px;border:2px solid #333;box-shadow:0 4px 20px #0008;font:14px Arial;display:flex;flex-direction:column;gap:12px';
     const heading = document.createElement('strong');
-    heading.textContent = linkOnly ? 'Başvuru eşleştirme raporu — 3.6.41' : 'Alan tanıma raporu — 3.6.41';
+    heading.textContent = linkOnly ? 'Başvuru eşleştirme raporu — 3.6.42' : 'Alan tanıma raporu — 3.6.42';
     const note = document.createElement('div');
     note.textContent = linkOnly ? 'Bağlantı hazırlığı: yalnızca alan yapısı çıkarıldı. TC/başvuru değerleri rapora eklenmez. İki profil henüz bağlı değil; işlem veya kayıt yapılmadı.' : 'Yalnızca hedef alanların teknik bilgileri. Alan değerleri ve hasta bilgileri rapora eklenmez. Rapor otomatik gönderilmez.';
     const output = document.createElement('textarea');
@@ -626,7 +626,7 @@
       saves[0].click();
       // Kaydet sonucunu HBYS gösterir; ek bilgi penceresi açma.
     } catch (error) {
-      alert('[3.6.41] ' + (saveClicked ? 'Kaydet işleminin sonucunu ekrandan kontrol et. ' : shortcutName + ' durdu: ') +
+      alert('[3.6.42] ' + (saveClicked ? 'Kaydet işleminin sonucunu ekrandan kontrol et. ' : shortcutName + ' durdu: ') +
         error.message);
     } finally {
       activeFields = null;
@@ -1022,7 +1022,7 @@
       }
       uniqueAction(root, 'kaydet').click();
     } catch (error) {
-      alert('[3.6.41] Poliklinik: ' + error.message);
+      alert('[3.6.42] Poliklinik: ' + error.message);
     } finally {
       release();
     }
@@ -1274,7 +1274,7 @@
       }, 'Kod bir kez gönderildi; listede eklenmesi doğrulanamadı. Tekrar seçmeden önce Hizmet Listesi’ni kontrol et.');
       return true;
     } catch (error) {
-      alert('[3.6.41] Makro: ' + error.message +
+      alert('[3.6.42] Makro: ' + error.message +
         (sent ? ' Kod otomatik yeniden gönderilmedi.' : ' Kod gönderilmedi.'));
       return false;
     } finally {
@@ -1371,7 +1371,7 @@
         completed++;
       }
     } catch (error) {
-      alert('[3.6.41] Makro: ' + error.message);
+      alert('[3.6.42] Makro: ' + error.message);
     } finally {
       shortcutBusy = false;
       macroBatchActive = false;
@@ -1472,7 +1472,7 @@
       macroMenu = panel;
       document.body.appendChild(panel);
     } catch (error) {
-      alert('[3.6.41] Makro: ' + error.message);
+      alert('[3.6.42] Makro: ' + error.message);
     } finally {
       macroMenuOpening = false;
     }
@@ -1548,7 +1548,7 @@
       if (!message) throw new Error('Bilinmeyen yerel test yanıtı.');
       alert(message + '\nBu yalnızca gönderilen örneklerin karşılaştırmasıdır; canlı hasta takibi veya kayıt yapılmaz.');
     } catch (error) {
-      alert('[3.6.41] Profil testi: ' + error.message);
+      alert('[3.6.42] Profil testi: ' + error.message);
     } finally {
       linkComparisonBusy = false;
     }
@@ -1838,16 +1838,20 @@
       return false;
     }, 'Eski tanının kaldırıldığı doğrulanamadı. Listeyi kontrol et.');
   };
-  const expectedDiagnosisCodes = (rows, targetCode, oldIndex) => {
+  const expectedDiagnosisCodes = (rows, targetCodes, oldIndex) => {
     const expected = rows.map(row => ({ code: row.code }));
     const old = oldIndex >= 0 ? rows[oldIndex] : null;
-    if (old && old.code !== targetCode) expected.splice(oldIndex, 1);
-    if (!expected.some(row => row.code === targetCode)) expected.push({ code: targetCode });
+    if (old && !targetCodes.includes(old.code)) expected.splice(oldIndex, 1);
+    for (const code of targetCodes) {
+      if (!expected.some(row => row.code === code)) expected.push({ code });
+    }
     return diagnosisCodeCounts(expected);
   };
-  const applyDiagnosisReplacement = async (context, target, oldIndex) => {
+  const applyDiagnosisReplacement = async (context, targets, oldIndex) => {
     if (shortcutBusy || outpatientRunning || macroBatchActive) return;
-    if (!diagnosisFavorites.some(item => item.code === target.code && item.label === target.label)) return;
+    if (!Array.isArray(targets) || !targets.length ||
+        new Set(targets.map(item => item.code)).size !== targets.length ||
+        !targets.every(target => diagnosisFavorites.some(item => item.code === target.code && item.label === target.label))) return;
     shortcutBusy = true;
     let mutationStarted = false;
     try {
@@ -1860,8 +1864,9 @@
       if ((initial.length && (!Number.isInteger(oldIndex) || !initial[oldIndex])) ||
           (!initial.length && oldIndex !== -1)) throw new Error('Değiştirilecek tanıyı seç.');
       const old = initial[oldIndex] || null;
-      if (old?.code === target.code) { closeDiagnosisMenu(); return; }
-      const expected = expectedDiagnosisCodes(initial, target.code, oldIndex);
+      const targetCodes = targets.map(target => target.code);
+      if (targets.length === 1 && old?.code === targetCodes[0]) { closeDiagnosisMenu(); return; }
+      const expected = expectedDiagnosisCodes(initial, targetCodes, oldIndex);
       closeDiagnosisMenu();
       const fields = [...context.root.querySelectorAll('input[name="pol.triaj"]')].filter(shown);
       if (fields.length !== 1) throw new Error('Poliklinik formu doğrulanamadı.');
@@ -1874,14 +1879,20 @@
         }, 'Tanı düzenleme açılamadı.');
       }
       assertDiagnosisPatient(context);
-      if (!initial.some(row => row.code === target.code)) {
-        mutationStarted = true;
-        await addReplacementDiagnosis(context, target.code);
+      for (const target of targets) {
+        assertDiagnosisPatient(context);
+        if (!diagnosisPatientRows(context.root).some(row => row.code === target.code)) {
+          mutationStarted = true;
+          await addReplacementDiagnosis(context, target.code);
+        }
       }
       assertDiagnosisPatient(context);
-      if (old) {
+      if (!targetCodes.every(code => diagnosisPatientRows(context.root).some(row => row.code === code))) {
+        throw new Error('Seçilen tanıların tamamı doğrulanamadı. Eski tanı silinmedi.');
+      }
+      if (old && !targetCodes.includes(old.code)) {
         mutationStarted = true;
-        await removeReplacedDiagnosis(context, old, target.code);
+        await removeReplacedDiagnosis(context, old, targetCodes[0]);
       }
       const verify = () => {
         assertDiagnosisPatient(context);
@@ -1900,7 +1911,7 @@
       verify();
       save.click();
     } catch (error) {
-      alert('[3.6.41] Tanı: ' + error.message + (mutationStarted ?
+      alert('[3.6.42] Tanı: ' + error.message + (mutationStarted ?
         ' Tanı listesinde kısmi değişiklik olabilir; yeniden denemeden önce kontrol et.' : ''));
     } finally {
       shortcutBusy = false;
@@ -1951,27 +1962,31 @@
       search.style.cssText = 'padding:10px;font:14px Arial';
       const buttons = document.createElement('div');
       buttons.style.cssText = 'display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:6px';
-      let selected = null;
+      const selected = new Map();
       const chosenLabel = document.createElement('div');
       chosenLabel.textContent = 'Yeni tanı seçilmedi.';
       const rendered = [];
       const submit = document.createElement('button');
       submit.type = 'button';
-      submit.textContent = rows.length ? 'Seçilen tanıyla değiştir ve kaydet' : 'Tanıyı ekle ve kaydet';
+      submit.textContent = rows.length ? 'Seçilen tanılarla değiştir ve kaydet' : 'Seçilen tanıları ekle ve kaydet';
       submit.disabled = true;
       submit.style.cssText = 'padding:12px;font:bold 14px Arial;cursor:pointer';
-      const update = () => { submit.disabled = !selected || (rows.length > 0 && oldIndex < 0); };
-      for (const item of diagnosisFavorites) {
+      const update = () => {
+        submit.disabled = !selected.size || (rows.length > 0 && oldIndex < 0);
+        chosenLabel.textContent = selected.size ?
+          'Seçilen tanılar (' + selected.size + '): ' + [...selected.keys()].join(', ') : 'Yeni tanı seçilmedi.';
+      };
+      for (const [index, item] of diagnosisFavorites.entries()) {
         const button = document.createElement('button');
         button.type = 'button';
-        button.textContent = item.code + ' · ' + item.label;
+        button.textContent = (index + 1) + '. ' + item.code + ' · ' + item.label;
         button.style.cssText = 'min-height:44px;padding:9px;text-align:left;border:2px solid #c4ced8;border-radius:6px;background:#f4f6f8;color:#111;cursor:pointer';
         button.setAttribute('aria-pressed', 'false');
         button.onclick = () => {
-          selected = item;
-          chosenLabel.textContent = 'Yeni tanı: ' + item.code + ' · ' + item.label;
+          if (selected.has(item.code)) selected.delete(item.code);
+          else selected.set(item.code, item);
           for (const entry of rendered) {
-            const active = entry.item.code === item.code;
+            const active = selected.has(entry.item.code);
             entry.button.setAttribute('aria-pressed', String(active));
             entry.button.style.backgroundColor = active ? '#176b48' : '#f4f6f8';
             entry.button.style.color = active ? '#fff' : '#111';
@@ -1984,22 +1999,17 @@
       search.oninput = () => {
         const query = normalize(search.value);
         const codeQuery = diagnosisCodeText(search.value);
-        selected = null;
-        chosenLabel.textContent = 'Yeni tanı seçilmedi.';
         for (const entry of rendered) {
           entry.button.hidden = !diagnosisCodeText(entry.item.code).includes(codeQuery) &&
             !normalize(entry.item.label).includes(query);
-          entry.button.setAttribute('aria-pressed', 'false');
-          entry.button.style.backgroundColor = '#f4f6f8';
-          entry.button.style.color = '#111';
         }
         update();
       };
       oldSelect.onchange = () => { oldIndex = Number(oldSelect.value); update(); };
       submit.onclick = () => {
-        if (submit.disabled || !selected) return;
+        if (submit.disabled || !selected.size) return;
         submit.disabled = true;
-        void applyDiagnosisReplacement(context, selected, oldIndex);
+        void applyDiagnosisReplacement(context, [...selected.values()], oldIndex);
       };
       const close = document.createElement('button');
       close.type = 'button';
@@ -2011,7 +2021,7 @@
       document.body.appendChild(panel);
       search.focus();
     } catch (error) {
-      alert('[3.6.41] Tanı: ' + error.message);
+      alert('[3.6.42] Tanı: ' + error.message);
     } finally {
       diagnosisMenuOpening = false;
     }
