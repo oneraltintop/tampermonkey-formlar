@@ -1,4 +1,4 @@
-// Form Doldur uygulaması — sürüm 3.6.33
+// Form Doldur uygulaması — sürüm 3.6.34
 (() => {
   'use strict';
   if (!['http:', 'https:'].includes(location.protocol)) return;
@@ -175,7 +175,7 @@
 
   const inspectFields = (linkOnly = false) => {
     document.getElementById('form-teknik-panel')?.remove();
-    const report = { version: '3.6.33', fields: [], saveButtons: [], choices: [], actions: [], tabs: [], editors: [], diagnosisStructure: [], dischargeStructure: [], supplyStructure: [], supplyChoices: [], headerBindings: [], linkProbe: linkOnly };
+    const report = { version: '3.6.34', fields: [], saveButtons: [], choices: [], actions: [], tabs: [], editors: [], diagnosisStructure: [], dischargeStructure: [], supplyStructure: [], supplyChoices: [], headerBindings: [], linkProbe: linkOnly };
     for (const { doc, path } of frameDocuments()) {
       report.headerBindings.push(...collectLinkBindings(doc, path));
       const isVisible = element => element.getClientRects().length > 0 &&
@@ -279,7 +279,7 @@
     panel.id = 'form-teknik-panel';
     panel.style.cssText = 'position:fixed;inset:10% 10%;z-index:2147483647;background:white;color:black;padding:20px;border:2px solid #333;box-shadow:0 4px 20px #0008;font:14px Arial;display:flex;flex-direction:column;gap:12px';
     const heading = document.createElement('strong');
-    heading.textContent = linkOnly ? 'Başvuru eşleştirme raporu — 3.6.33' : 'Alan tanıma raporu — 3.6.33';
+    heading.textContent = linkOnly ? 'Başvuru eşleştirme raporu — 3.6.34' : 'Alan tanıma raporu — 3.6.34';
     const note = document.createElement('div');
     note.textContent = linkOnly ? 'Bağlantı hazırlığı: yalnızca alan yapısı çıkarıldı. TC/başvuru değerleri rapora eklenmez. İki profil henüz bağlı değil; işlem veya kayıt yapılmadı.' : 'Yalnızca hedef alanların teknik bilgileri. Alan değerleri ve hasta bilgileri rapora eklenmez. Rapor otomatik gönderilmez.';
     const output = document.createElement('textarea');
@@ -579,7 +579,7 @@
       saves[0].click();
       // Kaydet sonucunu HBYS gösterir; ek bilgi penceresi açma.
     } catch (error) {
-      alert('[3.6.33] ' + (saveClicked ? 'Kaydet işleminin sonucunu ekrandan kontrol et. ' : shortcutName + ' durdu: ') +
+      alert('[3.6.34] ' + (saveClicked ? 'Kaydet işleminin sonucunu ekrandan kontrol et. ' : shortcutName + ' durdu: ') +
         error.message);
     } finally {
       activeFields = null;
@@ -781,6 +781,55 @@
     }
     throw new Error('Hastanın tek Birim değeri okunamadı; toplu birim filtresi kullanılmadı. Tanı seçilmedi.');
   };
+  const outpatientExitMatches = text => {
+    const value = normalize(text || '').replace(/\s*\/\s*/gu, '/');
+    return ['haliyle çıkış/taburcu', 'haliyle çıkış'].includes(value);
+  };
+  const prepareOutpatientExit = async (root, doc, assertPatient) => {
+    assertPatient();
+    openOutpatientTab(root, 'çıkış bilgileri');
+    const getField = () => {
+      const fields = [...root.querySelectorAll('input[name="cikisSekli"]')].filter(shown);
+      if (fields.length > 1) throw new Error('Birden fazla Çıkış Şekli alanı bulundu. Kayıt yapılmadı.');
+      return fields[0] && !fields[0].disabled ? fields[0] : null;
+    };
+    const field = await waitUntil(() => { assertPatient(); return getField(); },
+      'Çıkış Şekli alanı hazır olmadı. Kayıt yapılmadı.');
+    if (outpatientExitMatches(field.value)) return field;
+    const componentId = field.id.endsWith('-inputEl') ? field.id.slice(0, -8) : '';
+    const container = (componentId && doc.getElementById(componentId)) ||
+      field.closest('.x-form-item, .x-field');
+    const triggers = [...(container?.querySelectorAll('.x-form-trigger') || [])].filter(element =>
+      shown(element) && !element.closest('[disabled], [aria-disabled="true"], .x-item-disabled'));
+    if (triggers.length !== 1) throw new Error('Çıkış Şekli seçim düğmesi tek ve etkin bulunamadı. Kayıt yapılmadı.');
+    const popupSelector = '.x-boundlist, .x-combo-list, [role="listbox"]';
+    const existing = new Set([...doc.querySelectorAll(popupSelector)].filter(shown));
+    field.focus();
+    triggers[0].click();
+    const option = await waitUntil(() => {
+      assertPatient();
+      if (!field.isConnected || getField() !== field) throw new Error('Çıkış alanı değişti. Kayıt yapılmadı.');
+      const candidates = new Set();
+      for (const list of doc.querySelectorAll(popupSelector)) {
+        if (!shown(list) || existing.has(list)) continue;
+        for (const item of list.querySelectorAll('.x-boundlist-item, .x-combo-list-item, [role="option"]')) {
+          if (shown(item) && outpatientExitMatches(item.textContent) &&
+              !item.closest('[disabled], [aria-disabled="true"], .x-item-disabled')) candidates.add(item);
+        }
+      }
+      if (candidates.size > 1) throw new Error('Haliyle Çıkış seçeneği birden fazla bulundu. Kayıt yapılmadı.');
+      return candidates.size === 1 ? [...candidates][0] : null;
+    }, 'Haliyle Çıkış/Taburcu seçeneği bulunamadı. Kayıt yapılmadı.');
+    assertPatient();
+    option.click();
+    field.blur();
+    await pause(150);
+    await waitUntil(() => {
+      assertPatient();
+      return field.isConnected && getField() === field && outpatientExitMatches(field.value);
+    }, 'Haliyle Çıkış seçimi doğrulanamadı. Kayıt yapılmadı.');
+    return field;
+  };
   let outpatientRunning = false;
   const runOutpatient = async () => {
     if (outpatientRunning || shortcutBusy) return;
@@ -916,9 +965,17 @@
       if (!note.isConnected || note.value !== next || !diagnosisCells(root, diagnosisCode).length) {
         throw new Error('Tanı veya not değişti. Kayıt yapılmadı.');
       }
+      outpatientStage = 'Haliyle Çıkış/Taburcu seçimini hazırlama';
+      const exitField = await prepareOutpatientExit(root, doc, assertPatient);
+      assertPatient();
+      if (!unitField.isConnected || outpatientUnitValue(unitField) !== unitSnapshot ||
+          !note.isConnected || note.value !== next || !diagnosisCells(root, diagnosisCode).length ||
+          !exitField.isConnected || !outpatientExitMatches(exitField.value)) {
+        throw new Error('Birim, tanı, not veya çıkış şekli değişti. Kayıt yapılmadı.');
+      }
       uniqueAction(root, 'kaydet').click();
     } catch (error) {
-      alert('[3.6.33] Poliklinik: ' + error.message);
+      alert('[3.6.34] Poliklinik: ' + error.message);
     } finally {
       release();
     }
@@ -1147,7 +1204,7 @@
       }
       return true;
     } catch (error) {
-      alert('[3.6.33] Makro: ' + error.message +
+      alert('[3.6.34] Makro: ' + error.message +
         (sent ? ' Kod otomatik yeniden gönderilmedi.' : ' Kod gönderilmedi.'));
       return false;
     } finally {
@@ -1244,7 +1301,7 @@
         completed++;
       }
     } catch (error) {
-      alert('[3.6.33] Makro: ' + error.message);
+      alert('[3.6.34] Makro: ' + error.message);
     } finally {
       shortcutBusy = false;
       macroBatchActive = false;
@@ -1344,7 +1401,7 @@
       macroMenu = panel;
       document.body.appendChild(panel);
     } catch (error) {
-      alert('[3.6.33] Makro: ' + error.message);
+      alert('[3.6.34] Makro: ' + error.message);
     } finally {
       macroMenuOpening = false;
     }
@@ -1420,7 +1477,7 @@
       if (!message) throw new Error('Bilinmeyen yerel test yanıtı.');
       alert(message + '\nBu yalnızca gönderilen örneklerin karşılaştırmasıdır; canlı hasta takibi veya kayıt yapılmaz.');
     } catch (error) {
-      alert('[3.6.33] Profil testi: ' + error.message);
+      alert('[3.6.34] Profil testi: ' + error.message);
     } finally {
       linkComparisonBusy = false;
     }
