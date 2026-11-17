@@ -1,4 +1,4 @@
-// Form Doldur uygulaması — sürüm 3.6.39
+// Form Doldur uygulaması — sürüm 3.6.40
 (() => {
   'use strict';
   if (!['http:', 'https:'].includes(location.protocol)) return;
@@ -221,7 +221,7 @@
   };
   const inspectFields = (linkOnly = false) => {
     document.getElementById('form-teknik-panel')?.remove();
-    const report = { version: '3.6.39', fields: [], saveButtons: [], choices: [], actions: [], tabs: [], editors: [], diagnosisStructure: [], dischargeStructure: [], supplyStructure: [], supplyChoices: [], headerBindings: [], diagnosisEditorStructure: [], linkProbe: linkOnly };
+    const report = { version: '3.6.40', fields: [], saveButtons: [], choices: [], actions: [], tabs: [], editors: [], diagnosisStructure: [], dischargeStructure: [], supplyStructure: [], supplyChoices: [], headerBindings: [], diagnosisEditorStructure: [], linkProbe: linkOnly };
     for (const { doc, path } of frameDocuments()) {
       report.headerBindings.push(...collectLinkBindings(doc, path));
       report.diagnosisEditorStructure.push(...collectDiagnosisEditorStructure(doc, path));
@@ -326,7 +326,7 @@
     panel.id = 'form-teknik-panel';
     panel.style.cssText = 'position:fixed;inset:10% 10%;z-index:2147483647;background:white;color:black;padding:20px;border:2px solid #333;box-shadow:0 4px 20px #0008;font:14px Arial;display:flex;flex-direction:column;gap:12px';
     const heading = document.createElement('strong');
-    heading.textContent = linkOnly ? 'Başvuru eşleştirme raporu — 3.6.39' : 'Alan tanıma raporu — 3.6.39';
+    heading.textContent = linkOnly ? 'Başvuru eşleştirme raporu — 3.6.40' : 'Alan tanıma raporu — 3.6.40';
     const note = document.createElement('div');
     note.textContent = linkOnly ? 'Bağlantı hazırlığı: yalnızca alan yapısı çıkarıldı. TC/başvuru değerleri rapora eklenmez. İki profil henüz bağlı değil; işlem veya kayıt yapılmadı.' : 'Yalnızca hedef alanların teknik bilgileri. Alan değerleri ve hasta bilgileri rapora eklenmez. Rapor otomatik gönderilmez.';
     const output = document.createElement('textarea');
@@ -626,7 +626,7 @@
       saves[0].click();
       // Kaydet sonucunu HBYS gösterir; ek bilgi penceresi açma.
     } catch (error) {
-      alert('[3.6.39] ' + (saveClicked ? 'Kaydet işleminin sonucunu ekrandan kontrol et. ' : shortcutName + ' durdu: ') +
+      alert('[3.6.40] ' + (saveClicked ? 'Kaydet işleminin sonucunu ekrandan kontrol et. ' : shortcutName + ' durdu: ') +
         error.message);
     } finally {
       activeFields = null;
@@ -1022,7 +1022,7 @@
       }
       uniqueAction(root, 'kaydet').click();
     } catch (error) {
-      alert('[3.6.39] Poliklinik: ' + error.message);
+      alert('[3.6.40] Poliklinik: ' + error.message);
     } finally {
       release();
     }
@@ -1274,7 +1274,7 @@
       }, 'Kod bir kez gönderildi; listede eklenmesi doğrulanamadı. Tekrar seçmeden önce Hizmet Listesi’ni kontrol et.');
       return true;
     } catch (error) {
-      alert('[3.6.39] Makro: ' + error.message +
+      alert('[3.6.40] Makro: ' + error.message +
         (sent ? ' Kod otomatik yeniden gönderilmedi.' : ' Kod gönderilmedi.'));
       return false;
     } finally {
@@ -1371,7 +1371,7 @@
         completed++;
       }
     } catch (error) {
-      alert('[3.6.39] Makro: ' + error.message);
+      alert('[3.6.40] Makro: ' + error.message);
     } finally {
       shortcutBusy = false;
       macroBatchActive = false;
@@ -1472,7 +1472,7 @@
       macroMenu = panel;
       document.body.appendChild(panel);
     } catch (error) {
-      alert('[3.6.39] Makro: ' + error.message);
+      alert('[3.6.40] Makro: ' + error.message);
     } finally {
       macroMenuOpening = false;
     }
@@ -1548,7 +1548,7 @@
       if (!message) throw new Error('Bilinmeyen yerel test yanıtı.');
       alert(message + '\nBu yalnızca gönderilen örneklerin karşılaştırmasıdır; canlı hasta takibi veya kayıt yapılmaz.');
     } catch (error) {
-      alert('[3.6.39] Profil testi: ' + error.message);
+      alert('[3.6.40] Profil testi: ' + error.message);
     } finally {
       linkComparisonBusy = false;
     }
@@ -1796,6 +1796,16 @@
     }, 'Tanı Ekleme Listesi bulunamadı. Eski tanı silinmedi.');
     const visibleCells = () => diagnosisCells(dialog, code).filter(shown);
     if (!visibleCells().length) {
+      // Sık kullanılanlarda bulunmayan kodu tüm tanılar kataloğunda ara.
+      const catalogTabs = outpatientTabs(dialog, 'tanılar');
+      if (catalogTabs.length > 1) throw new Error('Tanılar sekmesi belirsiz. Eski tanı silinmedi.');
+      if (catalogTabs.length === 1) {
+        catalogTabs[0].click();
+        await pause(300);
+        assertDiagnosisPatient(context);
+      }
+    }
+    if (!visibleCells().length) {
       const search = [...dialog.querySelectorAll('input[type="search"][name="name"]')]
         .filter(field => shown(field) && !field.disabled && !field.readOnly);
       if (search.length !== 1) throw new Error('Tanı arama alanı bulunamadı. Eski tanı silinmedi.');
@@ -1808,6 +1818,17 @@
       search[0].dispatchEvent(new doc.defaultView.KeyboardEvent('keyup', {
         key: digit, code: 'Digit' + digit, keyCode: digit.charCodeAt(0), which: digit.charCodeAt(0), bubbles: true
       }));
+      // HBYS arama alanı Enter / specialkey olayını bekleyebilir.
+      for (const type of ['keydown', 'keypress', 'keyup']) {
+        assertDiagnosisPatient(context);
+        if (!search[0].isConnected || !diagnosisPickerOpen(dialog)) {
+          throw new Error('Tanı arama ekranı değişti. Eski tanı silinmedi.');
+        }
+        search[0].dispatchEvent(new doc.defaultView.KeyboardEvent(type, {
+          key: 'Enter', code: 'Enter', keyCode: 13, which: 13, charCode: type === 'keypress' ? 13 : 0,
+          bubbles: true, cancelable: true
+        }));
+      }
     }
     const cell = await wait(() => {
       const cells = visibleCells();
@@ -1935,7 +1956,7 @@
       verify();
       save.click();
     } catch (error) {
-      alert('[3.6.39] Tanı: ' + error.message + (mutationStarted ?
+      alert('[3.6.40] Tanı: ' + error.message + (mutationStarted ?
         ' Tanı listesinde kısmi değişiklik olabilir; yeniden denemeden önce kontrol et.' : ''));
     } finally {
       shortcutBusy = false;
@@ -2046,7 +2067,7 @@
       document.body.appendChild(panel);
       search.focus();
     } catch (error) {
-      alert('[3.6.39] Tanı: ' + error.message);
+      alert('[3.6.40] Tanı: ' + error.message);
     } finally {
       diagnosisMenuOpening = false;
     }
