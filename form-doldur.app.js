@@ -1,4 +1,4 @@
-// Form Doldur uygulaması — sürüm 3.6.40
+// Form Doldur uygulaması — sürüm 3.6.41
 (() => {
   'use strict';
   if (!['http:', 'https:'].includes(location.protocol)) return;
@@ -221,7 +221,7 @@
   };
   const inspectFields = (linkOnly = false) => {
     document.getElementById('form-teknik-panel')?.remove();
-    const report = { version: '3.6.40', fields: [], saveButtons: [], choices: [], actions: [], tabs: [], editors: [], diagnosisStructure: [], dischargeStructure: [], supplyStructure: [], supplyChoices: [], headerBindings: [], diagnosisEditorStructure: [], linkProbe: linkOnly };
+    const report = { version: '3.6.41', fields: [], saveButtons: [], choices: [], actions: [], tabs: [], editors: [], diagnosisStructure: [], dischargeStructure: [], supplyStructure: [], supplyChoices: [], headerBindings: [], diagnosisEditorStructure: [], linkProbe: linkOnly };
     for (const { doc, path } of frameDocuments()) {
       report.headerBindings.push(...collectLinkBindings(doc, path));
       report.diagnosisEditorStructure.push(...collectDiagnosisEditorStructure(doc, path));
@@ -326,7 +326,7 @@
     panel.id = 'form-teknik-panel';
     panel.style.cssText = 'position:fixed;inset:10% 10%;z-index:2147483647;background:white;color:black;padding:20px;border:2px solid #333;box-shadow:0 4px 20px #0008;font:14px Arial;display:flex;flex-direction:column;gap:12px';
     const heading = document.createElement('strong');
-    heading.textContent = linkOnly ? 'Başvuru eşleştirme raporu — 3.6.40' : 'Alan tanıma raporu — 3.6.40';
+    heading.textContent = linkOnly ? 'Başvuru eşleştirme raporu — 3.6.41' : 'Alan tanıma raporu — 3.6.41';
     const note = document.createElement('div');
     note.textContent = linkOnly ? 'Bağlantı hazırlığı: yalnızca alan yapısı çıkarıldı. TC/başvuru değerleri rapora eklenmez. İki profil henüz bağlı değil; işlem veya kayıt yapılmadı.' : 'Yalnızca hedef alanların teknik bilgileri. Alan değerleri ve hasta bilgileri rapora eklenmez. Rapor otomatik gönderilmez.';
     const output = document.createElement('textarea');
@@ -626,7 +626,7 @@
       saves[0].click();
       // Kaydet sonucunu HBYS gösterir; ek bilgi penceresi açma.
     } catch (error) {
-      alert('[3.6.40] ' + (saveClicked ? 'Kaydet işleminin sonucunu ekrandan kontrol et. ' : shortcutName + ' durdu: ') +
+      alert('[3.6.41] ' + (saveClicked ? 'Kaydet işleminin sonucunu ekrandan kontrol et. ' : shortcutName + ' durdu: ') +
         error.message);
     } finally {
       activeFields = null;
@@ -1022,7 +1022,7 @@
       }
       uniqueAction(root, 'kaydet').click();
     } catch (error) {
-      alert('[3.6.40] Poliklinik: ' + error.message);
+      alert('[3.6.41] Poliklinik: ' + error.message);
     } finally {
       release();
     }
@@ -1274,7 +1274,7 @@
       }, 'Kod bir kez gönderildi; listede eklenmesi doğrulanamadı. Tekrar seçmeden önce Hizmet Listesi’ni kontrol et.');
       return true;
     } catch (error) {
-      alert('[3.6.40] Makro: ' + error.message +
+      alert('[3.6.41] Makro: ' + error.message +
         (sent ? ' Kod otomatik yeniden gönderilmedi.' : ' Kod gönderilmedi.'));
       return false;
     } finally {
@@ -1371,7 +1371,7 @@
         completed++;
       }
     } catch (error) {
-      alert('[3.6.40] Makro: ' + error.message);
+      alert('[3.6.41] Makro: ' + error.message);
     } finally {
       shortcutBusy = false;
       macroBatchActive = false;
@@ -1472,7 +1472,7 @@
       macroMenu = panel;
       document.body.appendChild(panel);
     } catch (error) {
-      alert('[3.6.40] Makro: ' + error.message);
+      alert('[3.6.41] Makro: ' + error.message);
     } finally {
       macroMenuOpening = false;
     }
@@ -1548,17 +1548,13 @@
       if (!message) throw new Error('Bilinmeyen yerel test yanıtı.');
       alert(message + '\nBu yalnızca gönderilen örneklerin karşılaştırmasıdır; canlı hasta takibi veya kayıt yapılmaz.');
     } catch (error) {
-      alert('[3.6.40] Profil testi: ' + error.message);
+      alert('[3.6.41] Profil testi: ' + error.message);
     } finally {
       linkComparisonBusy = false;
     }
   };
 
   const diagnosisFavorites = [
-  {
-    "code": "Z54",
-    "label": "İyileşme dönemi"
-  },
   {
     "code": "J06.9",
     "label": "Akut üst solunum yolu enfeksiyonu"
@@ -1576,10 +1572,6 @@
     "label": "Alerji"
   },
   {
-    "code": "Z00.0",
-    "label": "Genel tıbbi muayene"
-  },
-  {
     "code": "R42",
     "label": "Baş dönmesi"
   },
@@ -1592,16 +1584,8 @@
     "label": "Gastroenterit ve kolit"
   },
   {
-    "code": "M79.19",
-    "label": "Miyalji (M79.19)"
-  },
-  {
     "code": "R11",
     "label": "Bulantı ve kusma"
-  },
-  {
-    "code": "W57",
-    "label": "Zehirsiz böcek ısırması"
   },
   {
     "code": "R10.4",
@@ -1610,26 +1594,6 @@
   {
     "code": "R07.4",
     "label": "Göğüs ağrısı"
-  },
-  {
-    "code": "Z02",
-    "label": "İdari amaçlı muayene"
-  },
-  {
-    "code": "R04.0",
-    "label": "Epistaksis"
-  },
-  {
-    "code": "Z72.1",
-    "label": "Alkol kullanımı"
-  },
-  {
-    "code": "N23",
-    "label": "Renal kolik"
-  },
-  {
-    "code": "K59.0",
-    "label": "Kabızlık"
   },
   {
     "code": "K02.9",
@@ -1648,10 +1612,6 @@
     "label": "Esansiyel hipertansiyon"
   },
   {
-    "code": "R55",
-    "label": "Senkop ve kollaps"
-  },
-  {
     "code": "H66.9",
     "label": "Otitis media"
   },
@@ -1666,22 +1626,6 @@
   {
     "code": "R50.9",
     "label": "Ateş"
-  },
-  {
-    "code": "J44.9",
-    "label": "Kronik obstrüktif akciğer hastalığı"
-  },
-  {
-    "code": "H10.3",
-    "label": "Akut konjonktivit"
-  },
-  {
-    "code": "N30.0",
-    "label": "Akut sistit"
-  },
-  {
-    "code": "Z02.9",
-    "label": "İdari amaçlı muayene (Z02.9)"
   }
 ];
   let diagnosisMenu = null;
@@ -1956,7 +1900,7 @@
       verify();
       save.click();
     } catch (error) {
-      alert('[3.6.40] Tanı: ' + error.message + (mutationStarted ?
+      alert('[3.6.41] Tanı: ' + error.message + (mutationStarted ?
         ' Tanı listesinde kısmi değişiklik olabilir; yeniden denemeden önce kontrol et.' : ''));
     } finally {
       shortcutBusy = false;
@@ -2067,7 +2011,7 @@
       document.body.appendChild(panel);
       search.focus();
     } catch (error) {
-      alert('[3.6.40] Tanı: ' + error.message);
+      alert('[3.6.41] Tanı: ' + error.message);
     } finally {
       diagnosisMenuOpening = false;
     }
