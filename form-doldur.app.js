@@ -1,4 +1,4 @@
-// Form Doldur uygulaması — sürüm 3.6.44
+// Form Doldur uygulaması — sürüm 3.6.45
 (() => {
   'use strict';
   if (!['http:', 'https:'].includes(location.protocol)) return;
@@ -221,7 +221,7 @@
   };
   const inspectFields = (linkOnly = false) => {
     document.getElementById('form-teknik-panel')?.remove();
-    const report = { version: '3.6.44', fields: [], saveButtons: [], choices: [], actions: [], tabs: [], editors: [], diagnosisStructure: [], dischargeStructure: [], supplyStructure: [], supplyChoices: [], headerBindings: [], diagnosisEditorStructure: [], linkProbe: linkOnly };
+    const report = { version: '3.6.45', fields: [], saveButtons: [], choices: [], actions: [], tabs: [], editors: [], diagnosisStructure: [], dischargeStructure: [], supplyStructure: [], supplyChoices: [], headerBindings: [], diagnosisEditorStructure: [], linkProbe: linkOnly };
     for (const { doc, path } of frameDocuments()) {
       report.headerBindings.push(...collectLinkBindings(doc, path));
       report.diagnosisEditorStructure.push(...collectDiagnosisEditorStructure(doc, path));
@@ -326,7 +326,7 @@
     panel.id = 'form-teknik-panel';
     panel.style.cssText = 'position:fixed;inset:10% 10%;z-index:2147483647;background:white;color:black;padding:20px;border:2px solid #333;box-shadow:0 4px 20px #0008;font:14px Arial;display:flex;flex-direction:column;gap:12px';
     const heading = document.createElement('strong');
-    heading.textContent = linkOnly ? 'Başvuru eşleştirme raporu — 3.6.44' : 'Alan tanıma raporu — 3.6.44';
+    heading.textContent = linkOnly ? 'Başvuru eşleştirme raporu — 3.6.45' : 'Alan tanıma raporu — 3.6.45';
     const note = document.createElement('div');
     note.textContent = linkOnly ? 'Bağlantı hazırlığı: yalnızca alan yapısı çıkarıldı. TC/başvuru değerleri rapora eklenmez. İki profil henüz bağlı değil; işlem veya kayıt yapılmadı.' : 'Yalnızca hedef alanların teknik bilgileri. Alan değerleri ve hasta bilgileri rapora eklenmez. Rapor otomatik gönderilmez.';
     const output = document.createElement('textarea');
@@ -626,7 +626,7 @@
       saves[0].click();
       // Kaydet sonucunu HBYS gösterir; ek bilgi penceresi açma.
     } catch (error) {
-      alert('[3.6.44] ' + (saveClicked ? 'Kaydet işleminin sonucunu ekrandan kontrol et. ' : shortcutName + ' durdu: ') +
+      alert('[3.6.45] ' + (saveClicked ? 'Kaydet işleminin sonucunu ekrandan kontrol et. ' : shortcutName + ' durdu: ') +
         error.message);
     } finally {
       activeFields = null;
@@ -1022,7 +1022,7 @@
       }
       uniqueAction(root, 'kaydet').click();
     } catch (error) {
-      alert('[3.6.44] Poliklinik: ' + error.message);
+      alert('[3.6.45] Poliklinik: ' + error.message);
     } finally {
       release();
     }
@@ -1274,7 +1274,7 @@
       }, 'Kod bir kez gönderildi; listede eklenmesi doğrulanamadı. Tekrar seçmeden önce Hizmet Listesi’ni kontrol et.');
       return true;
     } catch (error) {
-      alert('[3.6.44] Makro: ' + error.message +
+      alert('[3.6.45] Makro: ' + error.message +
         (sent ? ' Kod otomatik yeniden gönderilmedi.' : ' Kod gönderilmedi.'));
       return false;
     } finally {
@@ -1371,7 +1371,7 @@
         completed++;
       }
     } catch (error) {
-      alert('[3.6.44] Makro: ' + error.message);
+      alert('[3.6.45] Makro: ' + error.message);
     } finally {
       shortcutBusy = false;
       macroBatchActive = false;
@@ -1389,13 +1389,15 @@
       (event.keyCode >= 48 && event.keyCode <= 57 ? String(event.keyCode - 48) :
        event.keyCode >= 96 && event.keyCode <= 105 ? String(event.keyCode - 96) : null);
     const enter = event.key === 'Enter' || ['Enter', 'NumpadEnter'].includes(event.code);
-    if (digit === null && !enter) return false;
+    const space = event.key === ' ' || event.code === 'Space' || event.keyCode === 32;
+    const submit = enter || space;
+    if (digit === null && !submit) return false;
     event.preventDefault();
     event.stopPropagation();
-    const key = enter ? 'macro-menu-enter' : 'macro-menu-' + digit;
+    const key = submit ? 'macro-menu-submit' : 'macro-menu-' + digit;
     if (event.repeat || pressedShortcuts.has(key)) return true;
     pressedShortcuts.add(key);
-    if (enter) {
+    if (submit) {
       if (!macroMenuKeys.submit.disabled) macroMenuKeys.submit.click();
     } else {
       macroMenuKeys.buttons.get(digit)?.click();
@@ -1418,7 +1420,7 @@
       panel.id = 'poliklinik-makro-menu';
       panel.style.cssText = 'position:fixed;left:12px;top:20%;z-index:2147483647;background:white;color:#111;border:2px solid #285c8c;border-radius:8px;padding:12px;font:14px Arial;box-shadow:0 3px 14px #0005;display:flex;flex-direction:column;gap:6px;max-height:75vh;max-width:calc(100vw - 24px);overflow:auto;box-sizing:border-box';
       const heading = document.createElement('strong');
-      heading.textContent = 'Makrolar · Rakam: seç · Enter: ekle · Esc: kapat';
+      heading.textContent = 'Makrolar · Rakam: seç · Boşluk / Enter: ekle · Esc: kapat';
       panel.appendChild(heading);
       const selectedCodes = new Set();
       const body = document.createElement('div');
@@ -1472,7 +1474,7 @@
       macroMenu = panel;
       document.body.appendChild(panel);
     } catch (error) {
-      alert('[3.6.44] Makro: ' + error.message);
+      alert('[3.6.45] Makro: ' + error.message);
     } finally {
       macroMenuOpening = false;
     }
@@ -1548,7 +1550,7 @@
       if (!message) throw new Error('Bilinmeyen yerel test yanıtı.');
       alert(message + '\nBu yalnızca gönderilen örneklerin karşılaştırmasıdır; canlı hasta takibi veya kayıt yapılmaz.');
     } catch (error) {
-      alert('[3.6.44] Profil testi: ' + error.message);
+      alert('[3.6.45] Profil testi: ' + error.message);
     } finally {
       linkComparisonBusy = false;
     }
@@ -1911,7 +1913,7 @@
       verify();
       save.click();
     } catch (error) {
-      alert('[3.6.44] Tanı: ' + error.message + (mutationStarted ?
+      alert('[3.6.45] Tanı: ' + error.message + (mutationStarted ?
         ' Tanı listesinde kısmi değişiklik olabilir; yeniden denemeden önce kontrol et.' : ''));
     } finally {
       shortcutBusy = false;
@@ -2055,7 +2057,7 @@
       document.body.appendChild(panel);
       numberInput.focus();
     } catch (error) {
-      alert('[3.6.44] Tanı: ' + error.message);
+      alert('[3.6.45] Tanı: ' + error.message);
     } finally {
       diagnosisMenuOpening = false;
     }
