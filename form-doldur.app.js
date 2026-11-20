@@ -1,4 +1,4 @@
-// Form Doldur uygulaması — sürüm 3.6.49
+// Form Doldur uygulaması — sürüm 3.6.50
 (() => {
   'use strict';
   if (!['http:', 'https:'].includes(location.protocol)) return;
@@ -221,7 +221,7 @@
   };
   const inspectFields = (linkOnly = false) => {
     document.getElementById('form-teknik-panel')?.remove();
-    const report = { version: '3.6.49', fields: [], saveButtons: [], choices: [], actions: [], tabs: [], editors: [], diagnosisStructure: [], dischargeStructure: [], supplyStructure: [], supplyChoices: [], headerBindings: [], diagnosisEditorStructure: [], linkProbe: linkOnly };
+    const report = { version: '3.6.50', fields: [], saveButtons: [], choices: [], actions: [], tabs: [], editors: [], diagnosisStructure: [], dischargeStructure: [], supplyStructure: [], supplyChoices: [], headerBindings: [], diagnosisEditorStructure: [], linkProbe: linkOnly };
     for (const { doc, path } of frameDocuments()) {
       report.headerBindings.push(...collectLinkBindings(doc, path));
       report.diagnosisEditorStructure.push(...collectDiagnosisEditorStructure(doc, path));
@@ -326,7 +326,7 @@
     panel.id = 'form-teknik-panel';
     panel.style.cssText = 'position:fixed;inset:10% 10%;z-index:2147483647;background:white;color:black;padding:20px;border:2px solid #333;box-shadow:0 4px 20px #0008;font:14px Arial;display:flex;flex-direction:column;gap:12px';
     const heading = document.createElement('strong');
-    heading.textContent = linkOnly ? 'Başvuru eşleştirme raporu — 3.6.49' : 'Alan tanıma raporu — 3.6.49';
+    heading.textContent = linkOnly ? 'Başvuru eşleştirme raporu — 3.6.50' : 'Alan tanıma raporu — 3.6.50';
     const note = document.createElement('div');
     note.textContent = linkOnly ? 'Bağlantı hazırlığı: yalnızca alan yapısı çıkarıldı. TC/başvuru değerleri rapora eklenmez. İki profil henüz bağlı değil; işlem veya kayıt yapılmadı.' : 'Yalnızca hedef alanların teknik bilgileri. Alan değerleri ve hasta bilgileri rapora eklenmez. Rapor otomatik gönderilmez.';
     const output = document.createElement('textarea');
@@ -626,7 +626,7 @@
       saves[0].click();
       // Kaydet sonucunu HBYS gösterir; ek bilgi penceresi açma.
     } catch (error) {
-      alert('[3.6.49] ' + (saveClicked ? 'Kaydet işleminin sonucunu ekrandan kontrol et. ' : shortcutName + ' durdu: ') +
+      alert('[3.6.50] ' + (saveClicked ? 'Kaydet işleminin sonucunu ekrandan kontrol et. ' : shortcutName + ' durdu: ') +
         error.message);
     } finally {
       activeFields = null;
@@ -927,7 +927,9 @@
         );
         if (!root.isConnected || !anchor.isConnected || !patientRow.isConnected ||
             !stillSelected || patientRow.textContent !== patientSnapshot ||
-            (selection && readOutpatientEncounter(doc) !== selection.encounter)) {
+            (selection && (!selection.encounterField.isConnected ||
+              selection.encounterField.ownerDocument !== doc ||
+              selection.encounterField.value.trim() !== selection.encounter))) {
           throw new Error('Seçili hasta veya ekran değişti. İşlem durduruldu.');
         }
       };
@@ -1028,7 +1030,7 @@
       }
       uniqueAction(root, 'kaydet').click();
     } catch (error) {
-      alert('[3.6.49] Poliklinik: ' + error.message);
+      alert('[3.6.50] Poliklinik: ' + error.message);
     } finally {
       release();
     }
@@ -1280,7 +1282,7 @@
       }, 'Kod bir kez gönderildi; listede eklenmesi doğrulanamadı. Tekrar seçmeden önce Hizmet Listesi’ni kontrol et.');
       return true;
     } catch (error) {
-      alert('[3.6.49] Makro: ' + error.message +
+      alert('[3.6.50] Makro: ' + error.message +
         (sent ? ' Kod otomatik yeniden gönderilmedi.' : ' Kod gönderilmedi.'));
       return false;
     } finally {
@@ -1377,7 +1379,7 @@
         completed++;
       }
     } catch (error) {
-      alert('[3.6.49] Makro: ' + error.message);
+      alert('[3.6.50] Makro: ' + error.message);
     } finally {
       shortcutBusy = false;
       macroBatchActive = false;
@@ -1480,7 +1482,7 @@
       macroMenu = panel;
       document.body.appendChild(panel);
     } catch (error) {
-      alert('[3.6.49] Makro: ' + error.message);
+      alert('[3.6.50] Makro: ' + error.message);
     } finally {
       macroMenuOpening = false;
     }
@@ -1556,7 +1558,7 @@
       if (!message) throw new Error('Bilinmeyen yerel test yanıtı.');
       alert(message + '\nBu yalnızca gönderilen örneklerin karşılaştırmasıdır; canlı hasta takibi veya kayıt yapılmaz.');
     } catch (error) {
-      alert('[3.6.49] Profil testi: ' + error.message);
+      alert('[3.6.50] Profil testi: ' + error.message);
     } finally {
       linkComparisonBusy = false;
     }
@@ -1919,7 +1921,7 @@
       verify();
       save.click();
     } catch (error) {
-      alert('[3.6.49] Tanı: ' + error.message + (mutationStarted ?
+      alert('[3.6.50] Tanı: ' + error.message + (mutationStarted ?
         ' Tanı listesinde kısmi değişiklik olabilir; yeniden denemeden önce kontrol et.' : ''));
     } finally {
       shortcutBusy = false;
@@ -2063,7 +2065,7 @@
       document.body.appendChild(panel);
       numberInput.focus();
     } catch (error) {
-      alert('[3.6.49] Tanı: ' + error.message);
+      alert('[3.6.50] Tanı: ' + error.message);
     } finally {
       diagnosisMenuOpening = false;
     }
@@ -2104,7 +2106,7 @@
   const readOutpatientEncounter = doc => {
     const fields = [...doc.querySelectorAll('input[name="kodu"]')].filter(field => field.readOnly && shown(field));
     const value = fields.length === 1 ? fields[0].value.trim() : '';
-    return /^[0-9]{1,20}$/u.test(value) ? value : '';
+    return /^[0-9]{1,20}$/u.test(value) ? { field: fields[0], value } : null;
   };
   let outpatientListRefreshing = false;
   const refreshOutpatientPatients = async () => {
@@ -2180,7 +2182,7 @@
       if (result.first) {
         const previous = macroPatientRows(doc);
         const wasSelected = previous.length === 1 && previous[0] === result.first;
-        const previousEncounter = readOutpatientEncounter(doc);
+        const previousEncounter = readOutpatientEncounter(doc)?.value;
         result.first.scrollIntoView({ block: 'nearest' });
         const cell = result.first.querySelector('.x-grid-cell-inner, .x-grid3-cell-inner') || result.first;
         for (const type of ['mousedown', 'mouseup', 'click']) {
@@ -2196,12 +2198,12 @@
           const selected = macroPatientRows(doc);
           const current = readOutpatientEncounter(doc);
           return selected.length === 1 && selected[0] === result.first &&
-            current && (wasSelected || current !== previousEncounter) ? current : null;
+            current && (wasSelected || current.value !== previousEncounter) ? current : null;
         }, 'İlk hastanın işlem numarası doğrulanamadı. Alt+4 başlatılmadı.');
-        selection = { doc, row: result.first, encounter };
+        selection = { doc, row: result.first, encounter: encounter.value, encounterField: encounter.field };
       }
     } catch (error) {
-      alert('[3.6.49] Hasta listesi: ' + error.message);
+      alert('[3.6.50] Hasta listesi: ' + error.message);
     } finally {
       shortcutBusy = false;
       outpatientListRefreshing = false;
