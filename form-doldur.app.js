@@ -1,4 +1,4 @@
-// Form Doldur uygulaması — sürüm 3.6.45
+// Form Doldur uygulaması — sürüm 3.6.46
 (() => {
   'use strict';
   if (!['http:', 'https:'].includes(location.protocol)) return;
@@ -221,7 +221,7 @@
   };
   const inspectFields = (linkOnly = false) => {
     document.getElementById('form-teknik-panel')?.remove();
-    const report = { version: '3.6.45', fields: [], saveButtons: [], choices: [], actions: [], tabs: [], editors: [], diagnosisStructure: [], dischargeStructure: [], supplyStructure: [], supplyChoices: [], headerBindings: [], diagnosisEditorStructure: [], linkProbe: linkOnly };
+    const report = { version: '3.6.46', fields: [], saveButtons: [], choices: [], actions: [], tabs: [], editors: [], diagnosisStructure: [], dischargeStructure: [], supplyStructure: [], supplyChoices: [], headerBindings: [], diagnosisEditorStructure: [], linkProbe: linkOnly };
     for (const { doc, path } of frameDocuments()) {
       report.headerBindings.push(...collectLinkBindings(doc, path));
       report.diagnosisEditorStructure.push(...collectDiagnosisEditorStructure(doc, path));
@@ -326,7 +326,7 @@
     panel.id = 'form-teknik-panel';
     panel.style.cssText = 'position:fixed;inset:10% 10%;z-index:2147483647;background:white;color:black;padding:20px;border:2px solid #333;box-shadow:0 4px 20px #0008;font:14px Arial;display:flex;flex-direction:column;gap:12px';
     const heading = document.createElement('strong');
-    heading.textContent = linkOnly ? 'Başvuru eşleştirme raporu — 3.6.45' : 'Alan tanıma raporu — 3.6.45';
+    heading.textContent = linkOnly ? 'Başvuru eşleştirme raporu — 3.6.46' : 'Alan tanıma raporu — 3.6.46';
     const note = document.createElement('div');
     note.textContent = linkOnly ? 'Bağlantı hazırlığı: yalnızca alan yapısı çıkarıldı. TC/başvuru değerleri rapora eklenmez. İki profil henüz bağlı değil; işlem veya kayıt yapılmadı.' : 'Yalnızca hedef alanların teknik bilgileri. Alan değerleri ve hasta bilgileri rapora eklenmez. Rapor otomatik gönderilmez.';
     const output = document.createElement('textarea');
@@ -626,7 +626,7 @@
       saves[0].click();
       // Kaydet sonucunu HBYS gösterir; ek bilgi penceresi açma.
     } catch (error) {
-      alert('[3.6.45] ' + (saveClicked ? 'Kaydet işleminin sonucunu ekrandan kontrol et. ' : shortcutName + ' durdu: ') +
+      alert('[3.6.46] ' + (saveClicked ? 'Kaydet işleminin sonucunu ekrandan kontrol et. ' : shortcutName + ' durdu: ') +
         error.message);
     } finally {
       activeFields = null;
@@ -662,18 +662,20 @@
     input.scrollIntoView({ block: 'nearest', inline: 'nearest' });
     input.focus();
   };
-  const createCtrlTapHandler = onDouble => {
+  const createModifierTapHandler = (modifier, onDouble) => {
     let down = false;
     let clean = false;
     let lastTap = null;
-    const isCtrl = event => event.key === 'Control' ||
-      event.code === 'ControlLeft' || event.code === 'ControlRight';
+    const isModifier = event => event.key === modifier ||
+      event.code === modifier + 'Left' || event.code === modifier + 'Right';
+    const otherModifier = event => event.altKey || event.metaKey ||
+      (modifier === 'Control' ? event.shiftKey : event.ctrlKey);
     return {
       keydown(event) {
-        if (isCtrl(event)) {
+        if (isModifier(event)) {
           if (down || event.repeat) return;
           down = true;
-          clean = !event.altKey && !event.shiftKey && !event.metaKey;
+          clean = !otherModifier(event);
           if (!clean) lastTap = null;
         } else {
           clean = false;
@@ -681,8 +683,8 @@
         }
       },
       keyup(event) {
-        if (!isCtrl(event)) return;
-        const standalone = down && clean && !event.altKey && !event.shiftKey && !event.metaKey;
+        if (!isModifier(event)) return;
+        const standalone = down && clean && !otherModifier(event);
         down = false;
         clean = false;
         if (!standalone) { lastTap = null; return; }
@@ -1022,7 +1024,7 @@
       }
       uniqueAction(root, 'kaydet').click();
     } catch (error) {
-      alert('[3.6.45] Poliklinik: ' + error.message);
+      alert('[3.6.46] Poliklinik: ' + error.message);
     } finally {
       release();
     }
@@ -1274,7 +1276,7 @@
       }, 'Kod bir kez gönderildi; listede eklenmesi doğrulanamadı. Tekrar seçmeden önce Hizmet Listesi’ni kontrol et.');
       return true;
     } catch (error) {
-      alert('[3.6.45] Makro: ' + error.message +
+      alert('[3.6.46] Makro: ' + error.message +
         (sent ? ' Kod otomatik yeniden gönderilmedi.' : ' Kod gönderilmedi.'));
       return false;
     } finally {
@@ -1371,7 +1373,7 @@
         completed++;
       }
     } catch (error) {
-      alert('[3.6.45] Makro: ' + error.message);
+      alert('[3.6.46] Makro: ' + error.message);
     } finally {
       shortcutBusy = false;
       macroBatchActive = false;
@@ -1474,7 +1476,7 @@
       macroMenu = panel;
       document.body.appendChild(panel);
     } catch (error) {
-      alert('[3.6.45] Makro: ' + error.message);
+      alert('[3.6.46] Makro: ' + error.message);
     } finally {
       macroMenuOpening = false;
     }
@@ -1550,7 +1552,7 @@
       if (!message) throw new Error('Bilinmeyen yerel test yanıtı.');
       alert(message + '\nBu yalnızca gönderilen örneklerin karşılaştırmasıdır; canlı hasta takibi veya kayıt yapılmaz.');
     } catch (error) {
-      alert('[3.6.45] Profil testi: ' + error.message);
+      alert('[3.6.46] Profil testi: ' + error.message);
     } finally {
       linkComparisonBusy = false;
     }
@@ -1913,7 +1915,7 @@
       verify();
       save.click();
     } catch (error) {
-      alert('[3.6.45] Tanı: ' + error.message + (mutationStarted ?
+      alert('[3.6.46] Tanı: ' + error.message + (mutationStarted ?
         ' Tanı listesinde kısmi değişiklik olabilir; yeniden denemeden önce kontrol et.' : ''));
     } finally {
       shortcutBusy = false;
@@ -2057,7 +2059,7 @@
       document.body.appendChild(panel);
       numberInput.focus();
     } catch (error) {
-      alert('[3.6.45] Tanı: ' + error.message);
+      alert('[3.6.46] Tanı: ' + error.message);
     } finally {
       diagnosisMenuOpening = false;
     }
@@ -2089,6 +2091,85 @@
         event.keyCode === 52 || event.keyCode === 100) return 4;
     return 0;
   };
+  const isOutpatientPatientGrid = grid => {
+    const headers = [...grid.querySelectorAll('.x-column-header-text, [role="columnheader"]')]
+      .map(header => cleanLabel(header.textContent || '').replace(/[\s.:*]/gu, ''));
+    return headers.includes('kabul') && headers.includes('sevktarihi') &&
+      headers.some(header => ['adısoyadı', 'adsoyad', 'adsoyadı', 'adıvesoyadı'].includes(header));
+  };
+  let outpatientListRefreshing = false;
+  const refreshOutpatientPatients = async () => {
+    if (outpatientListRefreshing || shortcutBusy || outpatientRunning || macroBatchActive ||
+        macroMenu || diagnosisMenu || macroMenuOpening || diagnosisMenuOpening ||
+        document.getElementById('form-teknik-panel')) return;
+    const gridSelector = '.x-grid, .x-grid-panel';
+    const contexts = [];
+    for (const { doc } of frameDocuments()) {
+      if (!outpatientTabs(doc, 'muayene bilgileri').length ||
+          !outpatientTabs(doc, 'doktor notları').length ||
+          !doc.querySelector('input[name="pol.triaj"]')) continue;
+      for (const grid of doc.querySelectorAll(gridSelector)) {
+        if (shown(grid) && isOutpatientPatientGrid(grid)) contexts.push({ doc, grid });
+      }
+    }
+    if (!contexts.length) return;
+    outpatientListRefreshing = true;
+    shortcutBusy = true;
+    try {
+      if (contexts.length !== 1) throw new Error('Tek bir Poliklinik hasta listesi bulunamadı.');
+      const { doc, grid } = contexts[0];
+      const openDialog = () => [...doc.querySelectorAll('.x-window, [role="dialog"], [role="alertdialog"]')].some(shown);
+      if (openDialog()) return;
+      const rows = () => [...grid.querySelectorAll('.x-grid-row, .x-grid3-row, .x-grid-item')]
+        .filter(row => row.closest(gridSelector) === grid && row.getClientRects().length &&
+          !row.matches('.x-grid-group-hd, .x-grid-row-summary, .x-grid-rowbody-tr'));
+      const loading = () => grid.getAttribute('aria-busy') === 'true' ||
+        [...grid.querySelectorAll('.x-mask, .x-mask-msg')].some(shown);
+      if (loading()) return;
+      const refreshButtons = new Set();
+      for (const icon of grid.querySelectorAll('.x-tbar-loading')) {
+        const button = icon.closest('a[role="button"], button, .x-btn');
+        if (button?.closest(gridSelector) === grid && shown(button) &&
+            !button.closest('[disabled], [aria-disabled="true"], .x-item-disabled, .x-btn-disabled')) {
+          refreshButtons.add(button);
+        }
+      }
+      const query = outpatientActions(doc, 'sorgula');
+      const refresh = refreshButtons.size === 1 ? [...refreshButtons][0] :
+        refreshButtons.size === 0 && query.length === 1 ? query[0] : null;
+      if (!refresh) throw new Error('Hasta listesinin yenileme düğmesi bulunamadı.');
+      const before = rows()[0] || null;
+      let sawLoading = false;
+      let settledAt = 0;
+      let lastFirst;
+      refresh.click();
+      const result = await waitUntil(() => {
+        if (!shown(grid) || openDialog()) throw new Error('Poliklinik ekranı değişti. Hasta seçilmedi.');
+        if (loading()) {
+          sawLoading = true;
+          settledAt = 0;
+          return null;
+        }
+        const first = rows()[0] || null;
+        if (!sawLoading && first === before) return null;
+        if (!settledAt || first !== lastFirst) {
+          lastFirst = first;
+          settledAt = Date.now();
+          return null;
+        }
+        return Date.now() - settledAt >= 300 ? { first } : null;
+      }, 'Hasta listesinin yenilendiği doğrulanamadı. Hasta seçilmedi.');
+      if (result.first) {
+        result.first.scrollIntoView({ block: 'nearest' });
+        (result.first.querySelector('.x-grid-cell-inner, .x-grid3-cell-inner') || result.first).click();
+      }
+    } catch (error) {
+      alert('[3.6.46] Hasta listesi: ' + error.message);
+    } finally {
+      shortcutBusy = false;
+      outpatientListRefreshing = false;
+    }
+  };
   const pressedShortcuts = new Set();
   const watched = new WeakSet();
   const bindDiagnostics = () => {
@@ -2096,17 +2177,21 @@
       const view = doc.defaultView;
       if (!view || watched.has(view)) continue;
       watched.add(view);
-      const ctrlTap = createCtrlTapHandler(focusIdentity);
+      const ctrlTap = createModifierTapHandler('Control', focusIdentity);
+      const shiftTap = createModifierTapHandler('Shift', () => void refreshOutpatientPatients());
       view.addEventListener('keyup', event => {
         pressedShortcuts.clear();
         ctrlTap.keyup(event);
+        shiftTap.keyup(event);
       }, true);
       view.addEventListener('blur', () => {
         pressedShortcuts.clear();
         ctrlTap.reset();
+        shiftTap.reset();
       }, true);
       view.addEventListener('keydown', event => {
         ctrlTap.keydown(event);
+        shiftTap.keydown(event);
         if (handleDiagnosisMenuKey(event)) return;
         if (isDiagnosisMenuKey(event)) {
           event.preventDefault();
